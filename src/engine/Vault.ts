@@ -22,6 +22,7 @@ export default class Vault {
   private ratchetMintingSpace: number = 0;
 
   private cache: {
+    pricePerBtc?: number;
     bitcoinCount?: number;
     dollarsPerBitcoinUnlock?: number;
     profitsToDate?: number;
@@ -40,7 +41,9 @@ export default class Vault {
   }
 
   public get pricePerBtc() {
-    return this.pricePerBtcOverride ?? (this.btcPrices.getByDate(this.currentDate).price || this.btcPrices.getLatest().price);
+    // Cache the historical lookup alongside its dependent valuations. Refreshing
+    // the date must not rescan the price series for every position in the vault.
+    return this.cache.pricePerBtc ??= this.pricePerBtcOverride ?? (this.btcPrices.getByDate(this.currentDate).price || this.btcPrices.getLatest().price);
   }
 
   public get bitcoinCount() {
@@ -57,7 +60,7 @@ export default class Vault {
 
   public get profitsToDate() {
     this.cache.profitsToDate = this.cache.profitsToDate ?? Object.entries(this.profitsByDate).reduce((value, [date, profit]) => {
-      return dayjs(date).isAfter(this.currentDate) ? value : value + profit;
+      return dayjs.utc(date).isAfter(this.currentDate) ? value : value + profit;
     }, 0);
     return this.cache.profitsToDate;
   }
@@ -69,6 +72,7 @@ export default class Vault {
 
   public setDate(date: Dayjs) {
     this.currentDate = date;
+    this.clearCache();
   }
 
   public loadForDate(currentCirculation: number, currentDate: Dayjs, rules: IRules) {
@@ -78,9 +82,10 @@ export default class Vault {
     const ratchetingDec = rules.btcRatchetingPct / 100;
     const maxMintingCapacity = cleanRound(divide(currentCirculation, 2) * (vaultCapacityDec), 2);
 
-    this.currentDate = currentDate;
+    this.setDate(currentDate);
     this.cleanupOldItems();
     this.updateRatchets(maxMintingCapacity, rules);
+    this.clearCache();
 
     const pricePerBtc = this.pricePerBtc;
     const availableMintingSpace = Math.max(maxMintingCapacity - this.argonsMintedByBitcoins, 0);
@@ -178,6 +183,7 @@ export default class Vault {
       const bitcoinsToUnlock = maxBitcoinsToUnlock - totalBitcoinsUnlocked;
 
       const qty = type === 'ratcheted' ? item.ratchetedQty : item.nonRatchetedQty;
+      if (qty <= 0) continue;
       
       let lockPrice = type === 'ratcheted' ? item.ratchetedPrice : item.nonRatchetedPrice;
       if (type === 'ratcheted' && item.pendingRatchetValue > 0) {
@@ -203,7 +209,10 @@ export default class Vault {
           item.ratchetedQty = 0;
         }
         if (item.pendingRatchetValue > 0) {
-          item.pendingRatchetValue -= divide(item.pendingRatchetValue, item.ratchetedQty, 20) * bitcoinsUnlocked;
+          item.pendingRatchetValue = item.ratchetedQty === 0 ? 0 : Math.max(
+            item.pendingRatchetValue - divide(item.pendingRatchetValue, qty, 20) * bitcoinsUnlocked,
+            0,
+          );
         }
       } else {
         item.nonRatchetedQty -= bitcoinsUnlocked;

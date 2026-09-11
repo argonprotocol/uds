@@ -73,8 +73,8 @@ import emitter from '../emitters/basic';
 const basicStore = useBasicStore();
 const { selectedFilter, isReady, isRunning } = storeToRefs(basicStore);
 
-function resetToDefault() {
-  basicStore.resetConfig();
+async function resetToDefault() {
+  await basicStore.resetConfig();
   window.location.reload();
 }
 
@@ -164,4 +164,3 @@ function openVideoOverlay() {
     }
   }
 </style>
-

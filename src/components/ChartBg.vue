@@ -12,7 +12,7 @@
     left: 9px;
     width: calc(100% - 18px);
     height: calc(100% - 11px);
-    background: #F9FAFD;
+    background: var(--sam-surface);
     border: 1px solid #b9bcc4;
     box-shadow: 0 0 2px 2px rgba(0,0,0,0.05), inset 2px 2px 0 white;
     border-radius: 3px;
@@ -25,7 +25,7 @@
     left: 0px;
     width: 100%;
     height: 50%;
-    background: linear-gradient(to bottom, rgb(230, 234, 243), rgba(230, 234, 243, 0));
+    background: linear-gradient(to bottom, var(--sam-background), rgba(var(--sam-background-rgb), 0));
     z-index: 1;
   }
 }

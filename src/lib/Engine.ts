@@ -1,133 +1,141 @@
 import * as Vue from 'vue';
-import { get as getFromIdb, set as setToIdb, del as delFromIdb, keys as getKeysFromIdb } from 'idb-keyval';
+import { get as getFromIdb, set as setToIdb, del as delFromIdb } from 'idb-keyval';
 import EngineWorker from '../workers/engine.ts?worker';
-import BaseScenario from '../lib/BaseScenario';
+import BaseScenario from './BaseScenario';
 import DollarInflation from '../engine/DollarInflation';
-import { IFilterName } from '../store';
-import { IMarkerJson } from '../engine/Marker';
-import IRules from '../interfaces/IRules';
+import type { IFilterName } from '../store';
+import type { IMarkerJson } from '../engine/Marker';
+import type IRules from '../interfaces/IRules';
+import { createScenarioResult, readScenarioResult, SCENARIO_IDS, type ScenarioData } from './ScenarioResult';
 
 let isStarted = false;
-const worker = new EngineWorker();
 
 export default class Engine {
-  public isRunning: Vue.Ref<boolean>;
-  public selectedFilter: Vue.Ref<IFilterName>;
-  public simulationData: Vue.Ref<{ markers: IMarkerJson[], phases: any }>;
-  public incomingMarkers: Vue.Ref<IMarkerJson[]>;
-  public dollarMarkers: Vue.Ref<any[]>;
-  public workerResponse: { markers: IMarkerJson[], phases: any } = { markers: [], phases: {} };
-  public rules: IRules;
+  public workerResponse: ScenarioData = { markers: [], phases: {} };
 
-  private isInActiveMode = false;
+  private worker: Worker;
+  private runningFilter: IFilterName | null = null;
+  private runningRules: IRules;
+  private generation = 0;
+  private pendingSave: Promise<void> = Promise.resolve();
 
   constructor(
-    isRunning: Vue.Ref<boolean>,
-    rules: IRules,
-    selectedFilter: Vue.Ref<IFilterName>, 
-    simulationData: Vue.Ref<{ markers: IMarkerJson[], phases: any }>, 
-    incomingMarkers: Vue.Ref<IMarkerJson[]>, 
-    dollarMarkers: Vue.Ref<any[]>,
+    public isRunning: Vue.Ref<boolean>,
+    public rules: IRules,
+    public selectedFilter: Vue.Ref<IFilterName>,
+    public simulationData: Vue.Ref<ScenarioData>,
+    public incomingMarkers: Vue.Ref<IMarkerJson[]>,
+    public dollarMarkers: Vue.Ref<any[]>,
   ) {
     if (isStarted) throw new Error('Cannot create more than one Engine instance');
     isStarted = true;
+    this.runningRules = { ...rules };
+    this.worker = this.createWorker();
+  }
 
-    this.isRunning = isRunning;
-    this.rules = rules;
-    this.selectedFilter = selectedFilter;
-    this.simulationData = simulationData;
-    this.incomingMarkers = incomingMarkers;
-    this.dollarMarkers = dollarMarkers;
-
-    worker.onmessage = (event) => this.handleWorkerMessage(event);
+  private createWorker() {
+    const worker = new EngineWorker();
+    worker.onmessage = event => {
+      if (worker === this.worker) {
+        this.handleWorkerMessage(event).catch(console.error);
+      }
+    };
+    return worker;
   }
 
   public async start(filterName: IFilterName) {
-    this.isInActiveMode = (await getFromIdb('engineIsInActiveMode')) || false;
     await this.setFilter(filterName);
   }
 
   public run(filterName: IFilterName) {
-    console.log('RUNing filter', filterName);
     if (!filterName) throw new Error('filterName is required');
-    if (!this.isInActiveMode) {
-      this.setActiveMode(true);
-    }
+    // A background scenario may still be finishing. runNext prioritizes the
+    // selected filter afterwards, without mixing two runs in workerResponse.
+    if (this.runningFilter) return;
+    this.runningFilter = filterName;
+    this.runningRules = { ...this.rules };
     if (filterName === this.selectedFilter.value) {
       this.isRunning.value = true;
     }
     this.incomingMarkers.value = [];
     this.workerResponse = { markers: [], phases: {} };
-    worker.postMessage({ rules: this.rules, emitEvery: 5, filterName });
+    this.worker.postMessage({ rules: this.runningRules, emitEvery: 5, filterName });
   }
 
-  public reset() {
-    delFromIdb('engineData-collapseThenRecover');
-    delFromIdb('engineData-collapsedForever');
-    delFromIdb('engineData-collapsingRecovery');
-    delFromIdb('engineIsInActiveMode');
+  public async reset() {
+    this.generation++;
+    this.worker.terminate();
+    this.worker = this.createWorker();
+    this.runningFilter = null;
+    this.isRunning.value = false;
     this.simulationData.value = { markers: [], phases: {} };
     this.dollarMarkers.value = [];
     this.incomingMarkers.value = [];
-    this.isInActiveMode = false;
+    // An in-flight completed run must finish saving before its cache is deleted.
+    await this.pendingSave;
+    await Promise.all([
+      ...SCENARIO_IDS.map(id => delFromIdb(`engineData-${id}`)),
+      delFromIdb('engineIsInActiveMode'),
+    ]);
   }
 
   public async setFilter(filterName: IFilterName) {
-    const storedData = await getFromIdb(`engineData-${filterName}`);
-    if (storedData) {
-      this.simulationData.value = JSON.parse(storedData);
+    const generation = this.generation;
+    const rules = { ...this.rules };
+    const storedData = readScenarioResult(await getFromIdb(`engineData-${filterName}`), filterName, rules);
+    const data = storedData ?? await BaseScenario.get(filterName, rules);
+    if (generation !== this.generation || filterName !== this.selectedFilter.value) return;
+
+    if (data) {
+      this.simulationData.value = data;
       this.generateDollarMarkers();
       this.isRunning.value = false;
-      if (this.isInActiveMode) {
-        this.runNext();
-      }
-    } else if (!this.isInActiveMode) {
-      this.simulationData.value = await BaseScenario.get(filterName);
-      this.generateDollarMarkers();
     } else {
+      this.isRunning.value = true;
       this.run(filterName);
     }
   }
 
   private async runNext() {
-    const keys = await getKeysFromIdb();
-    console.log(keys);
-    for (const filterName of ['collapseThenRecover', 'collapsedForever', 'collapsingRecovery'] as IFilterName[]) {
-      if (!keys.includes(`engineData-${filterName}`)) {
+    const generation = this.generation;
+    const filters = [...new Set([this.selectedFilter.value, ...SCENARIO_IDS])];
+    for (const filterName of filters) {
+      const result = readScenarioResult(await getFromIdb(`engineData-${filterName}`), filterName, this.rules);
+      if (generation !== this.generation) return;
+      if (!result) {
         this.run(filterName);
         return;
       }
     }
-    this.setActiveMode(false);
-    console.log('no more filters');
-  }
-
-  private setActiveMode(isInActiveMode: boolean) {
-    this.isInActiveMode = isInActiveMode;
-    setToIdb('engineIsInActiveMode', isInActiveMode);
   }
 
   private generateDollarMarkers() {
     const markers = this.simulationData.value.markers;
     const dollarInflation = new DollarInflation(this.rules);
-    this.dollarMarkers.value = dollarInflation.generateMarkersForRange(markers[0].startingDate, markers[markers.length - 1].endingDate);  
+    this.dollarMarkers.value = dollarInflation.generateMarkersForRange(markers[0].startingDate, markers[markers.length - 1].endingDate);
   }
 
-  private handleWorkerMessage(event: MessageEvent) {
-    this.incomingMarkers.value.push(...event.data.markers);
-    this.workerResponse.markers.push(...event.data.markers.map((x: IMarkerJson) => ({ ...x })));
-    
+  private async handleWorkerMessage(event: MessageEvent) {
+    const generation = this.generation;
+    if (this.selectedFilter.value === this.runningFilter) {
+      this.incomingMarkers.value.push(...event.data.markers);
+    }
+    this.workerResponse.markers.push(...event.data.markers);
+
     if (event.data.isFinished) {
       this.workerResponse.phases = event.data.phases;
-      setToIdb(`engineData-${event.data.filterName}`, JSON.stringify(this.workerResponse));
+      const result = createScenarioResult(event.data.filterName, this.runningRules, this.workerResponse);
+      this.pendingSave = setToIdb(`engineData-${result.scenarioId}`, JSON.stringify(result));
+      await this.pendingSave;
+      if (generation !== this.generation) return;
+      this.runningFilter = null;
 
-      if (this.selectedFilter.value === event.data.filterName) {
-        this.simulationData.value = { markers: this.workerResponse.markers, phases: event.data.phases };
+      if (this.selectedFilter.value === result.scenarioId) {
+        this.simulationData.value = result;
         this.generateDollarMarkers();
         this.isRunning.value = false;
       }
-
-      this.runNext().catch(e => console.error(e));
+      await this.runNext();
     }
   }
 }

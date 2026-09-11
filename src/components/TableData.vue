@@ -130,6 +130,6 @@ function jumpToFormula() {
   @apply bg-green-100;
 }
 [BottomController] {
-  background: linear-gradient(to bottom, rgba(230, 234, 243, 0) 0%, #E6EAF3 50%, #E6EAF3 100%);
+  background: linear-gradient(to bottom, rgba(var(--sam-background-rgb), 0) 0%, var(--sam-background) 50%, var(--sam-background) 100%);
 }
 </style>

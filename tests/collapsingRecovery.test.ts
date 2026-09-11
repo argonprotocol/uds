@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test';
+import { expect, test } from 'vitest';
 import BlockchainRunner, { TERRA_COLLAPSE_DATE, TERRA_LAUNCH_DATE } from '../src/engine/BlockchainRunner';
 import rules from './helpers/rules';
 import IRules from '../src/interfaces/IRules';
@@ -17,7 +17,8 @@ test("test collapsing recovery", () => {
   }
 
   expect(daysToRecover).toBe(53);
-  expect(lastMarker.endingVaultMeta.bitcoinCount).toBe(79323.84211259667);
+  // Corrected pending-ratchet allocation and date-dependent valuations.
+  expect(lastMarker.endingVaultMeta.bitcoinCount).toBeCloseTo(79_322.84264021892, 8);
   expect(lastMarker.startingPrice).toBe(1.00);
   expect(lastMarker.endingPrice).toBe(1.00);
 });

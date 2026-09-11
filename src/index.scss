@@ -2,14 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --sam-background-rgb: 249, 242, 250;
+  --sam-background: rgb(var(--sam-background-rgb));
+  --sam-surface: #FDFAFD;
+}
+
 body {
-  background: #E6EAF3;
+  background: var(--sam-background);
   margin: 0;
   padding: 0;
 }
 
 .GLOBAL-BOX {
-  background: #F9FAFD;
+  background: var(--sam-surface);
   border: 1px solid #b9bcc4;
   box-shadow: 0 0 2px 2px rgba(0,0,0,0.05), inset 2px 2px 0 white;
   border-radius: 2px;

@@ -53,12 +53,12 @@
       <div class="grow relative">
         <ChartBg />
         <Chart ref="chartRef" :xAxisPhases="xAxisPhases" :endingYear="chartEndingYear" />
-        <div class="absolute top-1/2 translate-y-[222%] left-14 bg-[#E6EAF3] px-1 z-[10] pointer-events-none text-[#63298E] text-sm font-light">1.00</div>
+        <div class="absolute top-1/2 translate-y-[222%] left-14 bg-[var(--sam-background)] px-1 z-[10] pointer-events-none text-[#63298E] text-sm font-light">1.00</div>
         <div v-if="needsRerun" class="absolute top-0 left-0 w-full h-full z-10">
-          <div class="absolute top-0 left-0 w-full h-full bg-[#E6EAF3] opacity-80">
+          <div class="absolute top-0 left-0 w-full h-full bg-[var(--sam-background)] opacity-80">
             <ChartBg />
           </div>
-          <div @click="rerunEngine" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 group rounded-full bg-[#edf0f6] border border-slate-400/40 shadow-md flex items-center justify-center cursor-pointer">
+          <div @click="rerunEngine" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 group rounded-full bg-[var(--sam-surface)] border border-slate-400/40 shadow-md flex items-center justify-center cursor-pointer">
             <RerunIcon class="w-28 h-28 relative top-0.5 opacity-60 group-hover:opacity-100" />
             <span class="absolute top-[51%] left-[52%] -translate-x-1/2 -translate-y-1/2 text-slate-700/50 group-hover:text-slate-700/70 text-sm font-bold text-shadow">RERUN</span>
           </div>

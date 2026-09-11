@@ -165,7 +165,7 @@ function onPointerUp(event: PointerEvent) {
 .ChartSelector.Component {
   &:hover {
     [SelectionBg] {
-      background: rgba(230, 234, 243, 0.5);
+      background: rgba(var(--sam-background-rgb), 0.5);
     }
   }
 
@@ -187,7 +187,7 @@ function onPointerUp(event: PointerEvent) {
 
   [SelectionBg] {
     @apply absolute top-0 bottom-0 left-0 right-0;
-    background: rgba(230, 234, 243, 0.4);
+    background: rgba(var(--sam-background-rgb), 0.4);
   }
   [EdgeLeft] {
     @apply absolute top-0 bottom-0 -left-0 w-2 cursor-col-resize z-20;

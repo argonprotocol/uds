@@ -276,7 +276,7 @@ export default class Marker {
     const cappedMarkers = previousMarkers.slice(-maxCapMarkers);
     const cappedMarkerHours = cappedMarkers.length * this.durationInHours; // we're assuming all markers are the same duration
 
-    if (cappedMarkerHours < (rules.certaintyLatencyLow || 1)) {
+    if (cappedMarkerHours < (rules.speculativeLatencyLow || 1)) {
       // The minimum timeframe must have passed
       return;
     }

@@ -1,11 +1,10 @@
 import * as Fs from 'fs';
-import * as Path from 'path';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import { TERRA_COLLAPSE_DATE, TERRA_LAUNCH_DATE } from '../src/engine/BlockchainRunner';
 import rules from '../src/lib/RulesConfig';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import BlockchainRunner from '../src/engine/BlockchainRunner';
+import { createScenarioResult, type ScenarioId, type ScenarioData } from '../src/lib/ScenarioResult';
 
 dayjs.extend(utc);
 dayjs.extend(isSameOrBefore);
@@ -31,11 +30,11 @@ dayjs.extend(isSameOrBefore);
   save('collapsedForever', data);
 }
 
-function save(name: string, data: any) {
+function save(name: ScenarioId, data: ScenarioData) {
   // Save scenario data to JSON file
-  const dataStringified = JSON.stringify(data, null, 2);
-  const dataDir = Path.join(__dirname, '../public/data');
-  const dataPath = Path.join(dataDir, `${name}.json`);
+  const dataStringified = JSON.stringify(createScenarioResult(name, rules, data), null, 2);
+  const dataDir = new URL('../public/data/', import.meta.url);
+  const dataPath = new URL(`${name}.json`, dataDir);
 
   if (!Fs.existsSync(dataDir)) {
     Fs.mkdirSync(dataDir, { recursive: true });

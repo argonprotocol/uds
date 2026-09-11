@@ -7,7 +7,7 @@
 
 <style lang="scss" scoped>
 .BOX {
-  background: #F2F5FA;
+  background: var(--sam-surface);
   border: 1px solid #b9bcc4;
   box-shadow: 0 0 2px 2px rgba(0,0,0,0.05), inset 2px 2px 0 white;
 }

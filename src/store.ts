@@ -42,17 +42,17 @@ export const useBasicStore = defineStore('help', () => {
     }));
   }
 
-  function resetConfig() {
+  async function resetConfig() {
     sessionStorage.removeItem('config');
     sessionStorage.removeItem('rules');
-    engine.reset();
+    await engine.reset();
   }
 
-  function rerunEngine() {
+  async function rerunEngine() {
     const stringifiedRules = JSON.stringify(rules.value);
     sessionStorage.setItem('rules', stringifiedRules);
     engine.rules = JSON.parse(stringifiedRules);
-    engine.reset();
+    await engine.reset();
     engine.run(selectedFilter.value);
   }
   

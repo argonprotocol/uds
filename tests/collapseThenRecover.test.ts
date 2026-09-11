@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test';
+import { expect, test } from 'vitest';
 import BlockchainRunner, { TERRA_COLLAPSE_DATE, TERRA_LAUNCH_DATE } from '../src/engine/BlockchainRunner';
 import dayjs from 'dayjs';
 import rules from './helpers/rules';
@@ -67,7 +67,7 @@ test("test recovery without bitcoin", () => {
   expect(yearsToRecover).toBe(60);
 });
 
-test.only("test regrowth", () => {
+test("test regrowth", () => {
   const runner = new BlockchainRunner(rules);
   const { markers, phases } = runner.runCollapseThenRecover();
   const regrowthMarkers = markers.slice(phases.regrowth?.firstItem as number, phases.regrowth?.lastItem as number + 1);

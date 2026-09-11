@@ -54,8 +54,8 @@ function closeOverlay() {
   isOpen.value = false;
 }
 
-function resetConfig() {
-  basicStore.resetConfig();
+async function resetConfig() {
+  await basicStore.resetConfig();
   window.location.reload();
 }
 </script>

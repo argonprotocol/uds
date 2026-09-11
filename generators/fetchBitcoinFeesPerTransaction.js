@@ -1,23 +1,22 @@
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
+import { writeFileSync } from 'node:fs';
 
 const FEE_URL = 'https://api.blockchain.info/charts/transaction-fees';
 const TX_COUNT_URL = 'https://api.blockchain.info/charts/n-transactions';
 const START_DATE = '2010-07-18'; // First known price date
 const TODAY = new Date().toISOString().split('T')[0];
 
-async function fetchData(url) {
-  const response = await axios.get(url, {
-    params: {
-      timespan: 'all',
-      start: START_DATE,
-      end: TODAY,
-      format: 'json',
-      sampled: false, // Request all data points
-    },
+async function fetchData(endpoint) {
+  const url = new URL(endpoint);
+  url.search = new URLSearchParams({
+    timespan: 'all',
+    start: START_DATE,
+    end: TODAY,
+    format: 'json',
+    sampled: 'false',
   });
-  return response.data.values;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  return (await response.json()).values;
 }
 
 async function fetchBitcoinFeeData() {
@@ -48,11 +47,13 @@ async function fetchBitcoinFeeData() {
       });
     });
 
-    const filePath = path.join(__dirname, '../src/assets/bitcoinFeesPerTransaction.json')
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-    console.log('Data saved to src/assets/bitcoinFeesPerTransaction.json');
+    if (data.length === 0) throw new Error('No Bitcoin fees returned');
+    const filePath = new URL('../src/data/bitcoinFeesPerTransaction.json', import.meta.url);
+    writeFileSync(filePath, JSON.stringify(data, null, 2));
+    console.log('Data saved to src/data/bitcoinFeesPerTransaction.json');
   } catch (error) {
-    console.error('Error fetching data:', error.response ? error.response.data : error.message);
+    console.error('Error fetching data:', error.message);
+    process.exitCode = 1;
   }
 }
 

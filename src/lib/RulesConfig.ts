@@ -50,7 +50,7 @@ const rules = {
   certaintyGreedHigh: 20,
   certaintyLatencyLow: 24,
   certaintyLatencyHigh: 48,
-  certaintyMaxDailyIncrease: 0.5,
+  certaintyMaxDailyIncrease: 0.5, // Fraction of prior capital per day: 0.5 = 50%, not 0.5%.
 
   enableSpeculativeGreed: false,
   speculativeGreedLow: 10,
@@ -58,7 +58,7 @@ const rules = {
   speculativeGreedWithinHours: 24,
   speculativeLatencyLow: 24,
   speculativeLatencyHigh: 48,
-  speculativeMaxDailyIncrease: 0.5,
+  speculativeMaxDailyIncrease: 0.5, // Fraction of prior capital per day: 0.5 = 50%.
 };
 
 export default rules;

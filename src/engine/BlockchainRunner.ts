@@ -74,7 +74,8 @@ export default class BlockchainRunner {
     this.circulationToAddPerDay = divide(rules.circulation, lengthInDays);
     this.capitalToAddPerDay = this.circulationToAddPerDay * startingPrice;
 
-    this.maxRecentMarkers = Math.max(Math.round(rules.speculativeLatencyHigh/24), Math.round(rules.certaintyLatencyHigh/24)) || 1;
+    // The recovery stopping condition also needs a 20-marker lookback when streaming.
+    this.maxRecentMarkers = Math.max(20, Math.round(rules.speculativeLatencyHigh/24), Math.round(rules.certaintyLatencyHigh/24));
   }
 
   public onMarkers: undefined | ((markers: IMarkerJson[]) => void);
@@ -408,13 +409,12 @@ export default class BlockchainRunner {
     this.markers.push(marker);
     this.emitsPending++;
     
-    if (this.onMarkers && this.emitEvery && this.emitsPending >= this.emitEvery) {
-      const markersToEmit = this.markersPending;
+    if (this.onMarkers && this.emitEvery && this.emitsPending > this.emitEvery) {
+      // Retain the newest marker: the next price (or end of run) can still mark it
+      // as a chart point. Emitted JSON must match the non-streamed result.
+      const markersToEmit = this.markersPending.slice(0, -1);
       this.onMarkers(markersToEmit.map((m: Marker) => m.toJson()));
-      this.emitsPending = 0;
-    }
-
-    if (this.markers.length > this.maxRecentMarkers && !this.emitsPending) {
+      this.emitsPending = 1;
       this.markers = this.markers.slice(-this.maxRecentMarkers);
     }
   }

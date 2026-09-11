@@ -20,7 +20,7 @@
           <a @click="openWhitepapersOverlay(closeFn)" class="block pt-2 pb-1 px-3 hover:text-fuchsia-600 border-t border-gray-200 hover:bg-[#FAF4FC]">Read Our Whitepapers</a>
           <a @click="openVideoOverlay(closeFn)" class="block pb-2 pt-1 px-3 hover:text-fuchsia-600 hover:bg-[#FAF4FC]">Watch <span class="italic">Intro to SAM 101</span></a>
           <a @click="openTourOverlay(closeFn)" class="block py-2 px-3 hover:text-fuchsia-600 border-t border-gray-200 hover:bg-[#FAF4FC]">Take Our Guided Tour</a>
-          <a href="https://llb.argonprotocol.org/" class="block py-2 px-3 hover:text-fuchsia-600 border-t border-gray-200 hover:bg-[#FAF4FC]">Jump to Liquid Locking</a>
+          <a href="https://argon.network/docs/engine-modeling/sam" class="block py-2 px-3 hover:text-fuchsia-600 border-t border-gray-200 hover:bg-[#FAF4FC]">Open Argon Docs</a>
         </div>
       </PopoverPanel>
     </transition>
