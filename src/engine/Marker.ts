@@ -4,7 +4,7 @@ import IRules from "../interfaces/IRules";
 import Reserve, { IReserveMeta } from "./Reserve";
 import { divide } from "./Utils";
 import Vault, { IVaultMeta } from "./Vault";
-import { IPhaseName } from "./BlockchainRunner";
+export type IPhaseName = 'launch' | 'collapse' | 'recovery' | 'collapsingRecovery' | 'collapsedForever' | 'regrowth';
 
 dayjs.extend(utc);
 
@@ -402,17 +402,10 @@ export default class Marker {
 
   private maxBitcoinsToUnvault(excessCirculation: number, vault: Vault, rules: IRules): number {  
     const unlockBurnPerBitcoinDollar = Vault.calculateUnlockBurnPerBitcoinDollar(this.lowestPrice);
-    let maxBitcoinsToUnvault = divide(excessCirculation, (unlockBurnPerBitcoinDollar * vault.dollarsPerBitcoinUnlock), 20);
+    let maxBitcoinsToUnvault = divide(excessCirculation, (unlockBurnPerBitcoinDollar * vault.argonsPerBitcoinUnlock), 20);
 
     if (this.currentPrice < 0.98) {
-      const unlockBurnPerDollarAtReducedPrice = Vault.calculateUnlockBurnPerBitcoinDollar(this.currentPrice / 3);
-      const bitcoinsFutureNeed = divide(this.currentCirculation, (unlockBurnPerDollarAtReducedPrice * vault.dollarsPerBitcoinUnlock), 20);
-      const bitcoinsFutureClearToUse = vault.bitcoinCount - bitcoinsFutureNeed;
-      
-      // We might want to map out multiple future uses then average their bitcoin requirements
-
-      const latencyFactor = divide(bitcoinsFutureClearToUse, vault.bitcoinCount);
-      const hoursToFinishUnlocking = (rules.unvaultLatencyInHours - (rules.unvaultLatencyInHours * latencyFactor)) || 1;
+      const hoursToFinishUnlocking = rules.unvaultLatencyInHours || 1;
       const bitcoinsToUnvaultPerHour = divide(Math.min(maxBitcoinsToUnvault, vault.bitcoinCount), hoursToFinishUnlocking, 20);
       maxBitcoinsToUnvault = bitcoinsToUnvaultPerHour * (Math.min(hoursToFinishUnlocking, this.durationInHours));
     }

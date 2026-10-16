@@ -2,270 +2,284 @@
   <div ref="componentElement" class="MainPanel Component relative pt-2 -mt-2 h-full flex flex-col overflow-hidden">
     <div class="h-full flex flex-col relative">
       
-      <div class="absolute w-full h-full flex flex-col pointer-events-none">        
-        <div ChartCallout class="absolute bottom-[47%] left-[25px] z-1 h-[10%]">
-          <div class="absolute top-12 bottom-0 left-0 w-[1px] bg-slate-400"></div>
-          <p class="CalloutText relative left-0 -top-1">
-            Argon follows the same trajectory<br />
-            as Terra, growing to $18.7B in demand.
-          </p>
-        </div>
-
-        <div v-if="chartIsStandardLength" ChartCallout class="absolute bottom-[47%] left-[18.5%] z-1 h-[28%]">
-          <div class="absolute top-10 bottom-0 right-0 w-[1px] bg-slate-400"></div>
-          <div class="absolute top-10 right-0 h-[1px] w-32 bg-slate-400"></div>
-          <p class="CalloutText relative right-36 text-right">
-            Argon is hit with a full<br />
-            Terra-like collapse as $18.69B<br />
-            in capital flees the asset.
-          </p>
-        </div>
-
-        <div v-if="chartIsStandardLength && selectedFilter === 'collapseThenRecover'" ChartCallout class="absolute bottom-[47%] left-[34.1%] z-1 h-[18%]">
-          <div class="absolute top-6 bottom-0 -left-1 w-[1px] bg-slate-400"></div>
-          <div class="absolute top-6 -left-1 h-[1px] w-10 bg-slate-400"></div>
-          <p class="CalloutText relative left-12 text-left">
-            Argon bounces back to its target<br />
-            price in under 3 days, creating an<br /> 
-            enormous profit for those who participated.
-          </p>
-        </div>
-        <!-- <div v-else-if="selectedFilter === 'collapsingRecovery'" ChartCallout class="absolute bottom-[47%] left-[34.1%] z-1 h-[18%]">
-          <div class="absolute top-6 bottom-0 -left-1 w-[1px] bg-slate-400"></div>
-          <div class="absolute top-6 -left-1 h-[1px] w-10 bg-slate-400"></div>
-          <p class="CalloutText relative left-12 text-left">
-            Argon has absorbed the full brunt of Terra's<br />
-            $18.69B collapse, and other than brief dips<br />
-            in price, remains incredibly stable.
-          </p>
-        </div> -->
-
-        <div v-else-if="chartIsStandardLength && selectedFilter === 'collapsedForever'" ChartCallout class="absolute bottom-[9.5%] left-[37.5%] z-1 h-[20%]">
-          <div class="absolute pointer-events-auto top-[70px] bottom-0 -left-8 w-[1px] bg-slate-400 rotate-[30deg]"></div>
-          <p class="CalloutText pointer-events-auto right-0 -top-1 text-left">
-            Argon's novel stabilization mechanisms are<br />
-            disabled, meaning it basically resembles.<br />
-            Terra with no hope of recovering.
-          </p>
-        </div>
-      </div>
-      
       <div class="grow relative">
         <ChartBg />
-        <Chart ref="chartRef" :xAxisPhases="xAxisPhases" :endingYear="chartEndingYear" />
-        <div class="absolute top-1/2 translate-y-[222%] left-14 bg-[var(--sam-background)] px-1 z-[10] pointer-events-none text-[#63298E] text-sm font-light">1.00</div>
-        <div v-if="needsRerun" class="absolute top-0 left-0 w-full h-full z-10">
-          <div class="absolute top-0 left-0 w-full h-full bg-[var(--sam-background)] opacity-80">
-            <ChartBg />
-          </div>
-          <div @click="rerunEngine" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 group rounded-full bg-[var(--sam-surface)] border border-slate-400/40 shadow-md flex items-center justify-center cursor-pointer">
-            <RerunIcon class="w-28 h-28 relative top-0.5 opacity-60 group-hover:opacity-100" />
-            <span class="absolute top-[51%] left-[52%] -translate-x-1/2 -translate-y-1/2 text-slate-700/50 group-hover:text-slate-700/70 text-sm font-bold text-shadow">RERUN</span>
-          </div>
-        </div>
+        <Chart ref="chartRef" :xAxisPhases="[]" :startingTime="chartStartingTime" :endingTime="chartEndingTime" :hideTooltip="true" :recoveryPoints="recoveryPoints" :recoveryCursor="recoveryCursor" :recoveryPlaying="recoveryPlaying" :recoverySample="recoverySample"
+          :guidanceState="guidanceState" :guidanceFrame="recoverySample ?? recoveryFrames[0]" :guidanceRequest="recoveryRequest" :guidanceHistory="guidanceHistory" :recoveryFrames="recoveryFrames" :reserveStall="reserveStall" :allowTargetExtension="guidanceState === 'done'"
+          @guidanceStart="startPending" @guidanceContinue="resumePlayback" @guidanceDone="guidanceState = 'done'"
+          @priceChanged="onPriceChanged" @dragFadeChanged="dragFadeProgress = $event" @targetPositionChanged="targetLineY = $event" @recoveryRequested="prepareSimulation" @mintingRequested="prepareSimulation" @recoveryCancelled="cancelRecovery" />
+        <RecoveryPlayback v-if="recoveryRequest || dragFadeProgress > 0"
+          :key="recoveryRequest ? recoveryRunId : 'preview'" class="RecoveryPanel" :style="statsLayout"
+          :frames="recoveryRequest ? recoveryFrames : previewFrames" :result="recoveryResult" :error="recoveryError"
+          :preview="!recoveryRequest || guidanceState === 'ready'" :btc-price="rules.btcPriceOverride"
+          :target="rules.usdTargetForArgon" :paused="guidanceState === 'explaining' || guidanceState === 'reserve-stall' || guidanceState === 'selloff-bottom'"
+          :reserveWaitDays="recoveryRequest?.rules.fearSelloffDelayInDays"
+          :explanationPauseHours="getExplanationPauseHours" @explanationPause="pauseForExplanation" @reservePause="pauseForReserve" @bottomPause="pauseAtBottom" @sample="onRecoverySample" />
+
       </div>
     
-      <div class="absolute right-20 top-[8%] flex flex-col pb-20 items-end">
-        <div class="relative max-w-[41%]">
-          <p class="relative text-slate-700/80 text-base font-light text-shadow text-right z-[10]">
-            <strong class="font-bold">What Is SAM?</strong> This Stabilization Analysis Model (SAM) is a simulator that forces Argon into a death-spiral using Terra's collapse 
-            as its blueprint. Terra is one of the largest cypto failures in history, losing $18.7 billion in days. No stablecoin has shown an ability to survive such a 
-            death-sprial, which makes Terra the ideal scenario to test Argon.
-          </p>
-
-          <div ref="configSectionRef" class="absolute top-full translate-y-7 right-0 z-[10]">            
-          
-            <section class="divide-y divide-slate-400/40 border-b border-slate-400/40 whitespace-nowrap uppercase text-sm text-right cursor-default">
-              <h3 class="pt-1 pb-2 font-semibold text-base">CONFIGURE BASIC PROPERTIES</h3>
-              <div class="relative py-2 pl-3">
-                LIQUID LOCKING OF BITCOIN IS AT
-                <EditorButton id="btcVaultCapacityPct" type="percent" v-model="rules.btcVaultCapacityPct" />
-                CAPACITY
-              </div>
-              <div class="relative py-2 pl-3">
-                A MAX OF
-                <EditorButton id="btcMaxTxnsPerHour" type="number" v-model="rules.btcMaxTxnsPerHour" />
-                BITCOINS CAN UNLOCK PER HOUR
-              </div>
-            </section>
-
-            <div class="absolute -bottom-5 right-0 flex flex-row space-x-4 whitespace-nowrap translate-y-full justify-end">
-              <span VideoLink @click="openVideoOverlay" class="text-fuchsia-600 hover:text-fuchsia-500 cursor-pointer flex flex-row items-center pl-1 font-bold">
-                <PlayOutlined OutlineIcon class="w-6 h-6 inline-block" />
-                <PlaySolid SolidIcon class="w-6 h-6 inline-block" />
-                <span class="inline-block underline decoration-dashed decoration-fuchsia-300 underline-offset-4 ml-2">
-                  Watch <em class="italic">Intro to SAM 101</em>
-                </span>
-              </span>
-              <button @click="openConfiguration" class="border border-slate-400 text-fuchsia-700 py-1.5 px-6 rounded-md bg-white/50 hover:bg-white/100">
-                Edit All Properties
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <button v-if="false" type="button" VideoLink @click="openVideoOverlay" class="absolute bottom-14 right-6 z-20 text-fuchsia-600 hover:text-fuchsia-500 flex items-center font-bold bg-white/50 px-2 py-1">
+        <PlayOutlined OutlineIcon class="w-6 h-6" />
+        <PlaySolid SolidIcon class="w-6 h-6" />
+        <span class="underline decoration-dashed decoration-fuchsia-300 underline-offset-4 ml-2">Watch <em class="italic">Intro to Restabilization</em></span>
+      </button>
 
     </div>
     <PlayerOverlay />
-    <ConfigurationOverlay />
   </div>
 </template>
 
 <script setup lang="ts">
 import * as Vue from 'vue';
 import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import { IFilterName, useBasicStore } from '../store';
+import RecoveryWorker from '../workers/recovery.ts?worker';
+import type { RecoveryRequest, RecoveryResult, RecoveryFrame } from '../lib/RecoveryRunner';
+import MiningEngine from '../engine/MiningEngine';
+import { useBasicStore } from '../store';
 import Chart from '../components/Chart.vue';
+import RecoveryPlayback from '../components/RecoveryPlayback.vue';
 import PlayerOverlay from '../overlays/PlayerOverlay.vue';
-import ConfigurationOverlay from '../overlays/ConfigurationOverlay.vue';
 import { storeToRefs } from 'pinia';
 import emitter from '../emitters/basic';
 import ChartBg from '../components/ChartBg.vue';
-import EditorButton from '../components/EditorButton.vue';
 import PlayOutlined from '../assets/play-outlined.svg';
 import PlaySolid from '../assets/play-solid.svg';
-import RerunIcon from '../assets/rerun.svg';
 
-dayjs.extend(utc);
 
 const basicStore = useBasicStore();
-const { selectedFilter, rules, simulationData, dollarMarkers, needsRerun } = storeToRefs(basicStore);
+const { rules } = storeToRefs(basicStore);
+const props = defineProps<{ lockedBitcoins: number }>();
+const emit = defineEmits<{
+  priceChanged: [price: number];
+  recoveryAmountsChanged: [amounts: { circulation: number; lockedBitcoins: number } | null];
+}>();
+const bitcoinsInLiquidLocks = Vue.computed(() => props.lockedBitcoins);
+const displayPrice = Vue.ref(rules.value.usdTargetForArgon);
+const targetLineY = Vue.ref(0);
+const dragFadeProgress = Vue.ref(0);
+function onPriceChanged(price: number) {
+  displayPrice.value = price;
+  emit('priceChanged', price);
+}
+const previewFrames = Vue.computed<RecoveryFrame[]>(() => [{
+  time: chartStartingTime, elapsedHours: 0, price: displayPrice.value,
+  circulation: rules.value.circulation, bitcoinsRemaining: props.lockedBitcoins,
+  argonsBurned: 0, bitcoinsUnlocked: 0,
+}]);
+const statsLayout = Vue.computed(() => {
+  const aboveTarget = (recoveryRequest.value?.startingPrice ?? displayPrice.value) > rules.value.usdTargetForArgon;
+  return { opacity: recoveryRequest.value ? 1 : dragFadeProgress.value, top: `${targetLineY.value + (aboveTarget ? 65 : -65)}px`, transform: aboveTarget ? 'none' : 'translateY(-100%)' };
+});
+
+// Anchor the window to the user's current calendar date, with UTC chart coordinates.
+const today = dayjs().startOf('day');
+const toChartTime = (date: dayjs.Dayjs) => Date.UTC(date.year(), date.month(), date.date());
+const chartStartingTime = toChartTime(today.subtract(7, 'day'));
+const chartEndingTime = toChartTime(today.add(23, 'day'));
 
 const chartRef = Vue.ref<typeof Chart | null>(null);
-const chartIsStandardLength = Vue.ref(true);
-const chartEndingYear = Vue.ref(2025);
-
 const componentElement = Vue.ref(null);
-
-function rerunEngine() {
-  needsRerun.value = false;
-  basicStore.rerunEngine();
+const recoveryPoints = Vue.shallowRef<RecoveryResult['points']>([]);
+const recoveryCursor = Vue.shallowRef<{ x: number; y: number } | undefined>();
+const recoveryPlaying = Vue.ref(false);
+const recoveryRequest = Vue.shallowRef<RecoveryRequest | null>(null);
+const recoverySample = Vue.shallowRef<RecoveryFrame | undefined>();
+const recoveryFrames = Vue.shallowRef<RecoveryFrame[]>([]);
+const recoveryResult = Vue.shallowRef<RecoveryResult | null>(null);
+const recoveryError = Vue.ref('');
+const recoveryRunId = Vue.ref(0);
+const guidanceState = Vue.ref<'idle' | 'ready' | 'running' | 'explaining' | 'reserve-stall' | 'selloff-bottom' | 'success' | 'failure' | 'done'>('idle');
+const guidanceHistory = Vue.shallowRef<{ state: string; frame: RecoveryFrame; request: RecoveryRequest }[]>([]);
+Vue.watch(guidanceState, state => {
+  if (!['ready', 'explaining', 'reserve-stall', 'selloff-bottom', 'success', 'failure'].includes(state)) return;
+  const frame = recoverySample.value ?? recoveryFrames.value[0];
+  if (!frame || !recoveryRequest.value) return;
+  guidanceHistory.value = [...guidanceHistory.value, {
+    state, frame: { ...frame }, request: structuredClone(recoveryRequest.value),
+  }];
+});
+function pauseAtBottom() {
+  if (guidanceState.value !== 'running') return;
+  guidanceState.value = 'selloff-bottom';
+  recoveryPlaying.value = false;
 }
+const reserveStall = Vue.computed(() => recoveryFrames.value.find(frame => frame.reserveStall &&
+  recoverySample.value && frame.time <= recoverySample.value.time));
+function pauseForReserve() {
+  if (guidanceState.value !== 'running') return;
+  guidanceState.value = 'reserve-stall';
+  recoveryPlaying.value = false;
+}
+function getExplanationPauseHours() {
+  return chartRef.value?.getExplanationPauseHours(recoveryFrames.value);
+}
+function pauseForExplanation() {
+  if (guidanceState.value !== 'running') return;
+  guidanceState.value = 'explaining';
+  recoveryPlaying.value = false;
+}
+function resumePlayback() {
+  if (!['explaining', 'reserve-stall', 'selloff-bottom'].includes(guidanceState.value)) return;
+  guidanceState.value = 'running';
+  recoveryPlaying.value = true;
+}
+let recoveryWorker: Worker | null = null;
+let standbyRecoveryWorker: Worker | null = null;
+
+function cancelRecovery() {
+  guidanceHistory.value = [];
+  guidanceState.value = 'idle';
+  recoveryWorker?.terminate();
+  recoveryWorker = null;
+  recoveryRequest.value = null;
+  recoveryPoints.value = [];
+  recoveryCursor.value = undefined;
+  recoverySample.value = undefined;
+  emit('recoveryAmountsChanged', null);
+  recoveryPlaying.value = false;
+  recoveryFrames.value = [];
+  recoveryResult.value = null;
+  recoveryError.value = '';
+}
+
+function onRecoverySample(sample: { frame: RecoveryFrame; points: RecoveryResult['points']; finished: boolean }) {
+  if (!recoveryRequest.value) return;
+  recoveryPoints.value = sample.points;
+  recoveryCursor.value = { x: sample.frame.time, y: sample.frame.price };
+  recoverySample.value = sample.frame;
+  emit('recoveryAmountsChanged', {
+    circulation: sample.frame.circulation,
+    lockedBitcoins: sample.frame.bitcoinsRemaining,
+  });
+  recoveryPlaying.value = !sample.finished && !recoveryError.value;
+  if (sample.finished && guidanceState.value === 'running') {
+    guidanceState.value = recoveryResult.value?.recovered ? 'success' : 'failure';
+  }
+}
+
+function prepareSimulation(shock: Pick<RecoveryRequest, 'startingTime' | 'endingTime' | 'startingPrice'>) {
+  cancelRecovery();
+  recoveryRunId.value++;
+  const request: RecoveryRequest = { ...shock,
+    endingTime: shock.startingTime + (chartEndingTime - chartStartingTime),
+    lockedBitcoins: bitcoinsInLiquidLocks.value, rules: JSON.parse(JSON.stringify(rules.value)) };
+  recoveryFrames.value = [{ time: shock.startingTime, elapsedHours: 0, price: shock.startingPrice,
+    circulation: request.rules.circulation, bitcoinsRemaining: request.lockedBitcoins,
+    bitcoinsUnlocked: 0, argonsBurned: 0 }];
+  recoveryRequest.value = request;
+  guidanceState.value = 'ready';
+}
+
+function startPending() {
+  if (guidanceState.value !== 'ready' || !recoveryRequest.value) return;
+  const request = recoveryRequest.value;
+  const history = guidanceHistory.value;
+  if (request.startingPrice > request.rules.usdTargetForArgon) startMinting(request);
+  else startRecovery(request);
+  guidanceHistory.value = history;
+}
+
+const miningEngine = new MiningEngine();
+
+function startMinting(shock: Pick<RecoveryRequest, 'startingTime' | 'endingTime' | 'startingPrice'>) {
+  cancelRecovery();
+  guidanceState.value = 'running';
+  recoveryRunId.value++;
+  const request: RecoveryRequest = { ...shock,
+    endingTime: shock.startingTime + (chartEndingTime - chartStartingTime),
+    lockedBitcoins: bitcoinsInLiquidLocks.value,
+    rules: JSON.parse(JSON.stringify(rules.value)) };
+  recoveryRequest.value = request;
+  try {
+    const result = miningEngine.run(request);
+    recoveryFrames.value = result.frames;
+    recoveryResult.value = result;
+    recoveryPlaying.value = true;
+  } catch (error) {
+    guidanceState.value = 'failure';
+    recoveryError.value = `Mining failed: ${error instanceof Error ? error.message : error}`;
+    recoveryFrames.value = [{ time: shock.startingTime, elapsedHours: 0, price: shock.startingPrice,
+      circulation: request.rules.circulation, argonsBurned: 0, bitcoinsUnlocked: 0,
+      bitcoinsRemaining: request.lockedBitcoins }];
+  }
+}
+
+function startRecovery(shock: Pick<RecoveryRequest, 'startingTime' | 'endingTime' | 'startingPrice'>) {
+  cancelRecovery();
+  guidanceState.value = 'running';
+  recoveryRunId.value++;
+  const request: RecoveryRequest = {
+    ...shock, endingTime: shock.startingTime + (chartEndingTime - chartStartingTime),
+    lockedBitcoins: bitcoinsInLiquidLocks.value,
+    rules: JSON.parse(JSON.stringify(rules.value)),
+  };
+  recoveryFrames.value = [{ time: shock.startingTime, elapsedHours: 0, price: shock.startingPrice,
+    argonsBurned: 0, bitcoinsUnlocked: 0, bitcoinsRemaining: request.lockedBitcoins, circulation: request.rules.circulation }];
+  recoveryRequest.value = request;
+  recoveryPlaying.value = true;
+  const worker = standbyRecoveryWorker ?? new RecoveryWorker();
+  standbyRecoveryWorker = null;
+  recoveryWorker = worker;
+  worker.onmessage = event => {
+    if (recoveryWorker !== worker) return;
+    if (event.data.type === 'frames') {
+      const lastTime = recoveryFrames.value[recoveryFrames.value.length - 1].time;
+      const incoming = (event.data.frames as RecoveryFrame[]).filter(frame => frame.time > lastTime);
+      if (incoming.length) recoveryFrames.value = [...recoveryFrames.value, ...incoming];
+    } else if (event.data.type === 'complete') {
+      const result = event.data.result as RecoveryResult;
+      recoveryFrames.value = result.frames;
+      recoveryResult.value = result;
+      worker.terminate();
+      recoveryWorker = null;
+    } else if (event.data.type === 'error') {
+      guidanceState.value = 'failure';
+      recoveryError.value = `Recovery failed: ${event.data.message}`;
+      recoveryPlaying.value = false;
+      worker.terminate();
+      recoveryWorker = null;
+    }
+  };
+  worker.onerror = () => {
+    if (recoveryWorker !== worker) return;
+    guidanceState.value = 'failure';
+    recoveryError.value = 'Recovery failed. Try adjusting the inputs.';
+    recoveryPlaying.value = false;
+    worker.terminate();
+    recoveryWorker = null;
+  };
+  worker.postMessage(request);
+}
+
+Vue.watch([rules, bitcoinsInLiquidLocks], cancelRecovery, { deep: true });
+Vue.onBeforeUnmount(() => {
+  cancelRecovery();
+  standbyRecoveryWorker?.terminate();
+});
 
 function openVideoOverlay() {
   emitter.emit('openVideoOverlay');
 }
 
-function openConfiguration() {
-  emitter.emit('openEditing');
-}
-
-function loadData() {
-  const markers = simulationData.value.markers;
-  const phases: any = {};
-
-  for (const [name, phase] of Object.entries(simulationData.value.phases) as any) {
-    phases[name] = {
-      firstItem: markers[phase.firstItem],
-      lastItem: markers[phase.lastItem],
-    }
-  }
-
-  xAxisUpdate(selectedFilter.value, phases);
-
-  let accumulatedSeigniorage = 0;
-  let accumulatedArgonLoss = 0;
-
-  // connect each item to the next and previous item
-  for (const [index, item] of markers.entries()) {
-    const seigniorageProfits: number[] = Object.values(item.seigniorageMap as any);
-    const addedSeigniorageProfits = seigniorageProfits.reduce((acc: number, curr: number) => acc + curr, 0);
-
-    accumulatedSeigniorage += addedSeigniorageProfits;
-    accumulatedArgonLoss += item.argonLossDueToFear;
-    item.seigniorageProfits = accumulatedSeigniorage;
-    item.argonLossDueToFear = accumulatedArgonLoss;
-
-    item.nextIdx = (markers[index + 1] || item).idx;
-    item.previousIdx = (markers[index - 1] || item).idx;
-    item.dollar = dollarMarkers.value[index];
-  }
-  
-  chartEndingYear.value = dayjs.utc(markers[markers.length - 1].endingDate).year();
-  chartIsStandardLength.value = chartEndingYear.value === 2025;
-  chartRef.value?.reloadData(markers, dollarMarkers.value);
-
-  setStartingSelectorPos(phases);
-  setTimeout(() => setStartingSelectorPos(phases), 1);
-}
-
-function setStartingSelectorPos(phases: any) {
-  const startPhase = phases.collapse || phases.collapsingRecovery;
-  const endPhase = phases.recovery || phases.collapse || phases.collapsingRecovery;
- chartRef.value?.setMainSelectorPos(startPhase.firstItem.idx, endPhase.lastItem.idx);
-}
-
-const xAxisLaunchPhase = {
-  id: 'launch',
-  label: "Replication of Terra's Launch",
-  bgColor: '#AAB0B7',
-  firstItem: {
-    startingDate: '2020-10-01',
-  },
-  lastItem: {
-    startingDate: '2022-05-08',
-  },
-};
-
-const xAxisPhases: Vue.Ref<any[]> = Vue.ref([xAxisLaunchPhase]);
-
-function xAxisUpdate(newSelectedFilter: IFilterName, phases: any) {
-  xAxisPhases.value = [{ 
-    ...xAxisLaunchPhase, 
-    ...phases.launch,
-  }];
-   
-  if (newSelectedFilter === 'collapseThenRecover') {
-    xAxisPhases.value.push(...[
-      {
-        id: 'collapse',
-        bgColor: '#F36F6F',
-        ...phases.collapse,
-      }, {
-        id: 'recovery',
-        bgColor: ['#F36F6F', '#93CD61'],
-        ...phases.recovery,
-      }, {
-        id: 'regrowth',
-        label: 'Stabilized and Growing',
-        bgColor: '#93CD61',
-        ...phases.regrowth,
-      }
-    ]);
-  } else if (newSelectedFilter === 'collapsingRecovery') {
-    xAxisPhases.value.push(...[
-      {
-        id: 'collapsingRecovery',
-        bgColor: ['#F36F6F', '#93CD61'],
-        ...phases.collapsingRecovery,
-      }, {
-        id: 'regrowth',
-        label: 'Stabilized and Growing',
-        bgColor: '#93CD61',
-        ...phases.regrowth,
-      }
-    ]);
-  } else if (newSelectedFilter === 'collapsedForever') {
-    xAxisPhases.value.push(...[
-      {
-        id: 'collapse',
-        bgColor: '#F36F6F',
-        ...phases.collapse,
-      }, {
-        id: 'collapsedForever',
-        label: 'No Hope of Recovery',
-        bgColor: '#F36F6F',
-        ...phases.collapsedForever,
-      }
-    ]);
-  }
-}
-
-Vue.onMounted(() => loadData());
+Vue.onMounted(() => {
+  // Load the worker ahead of the first interaction without running a simulation.
+  standbyRecoveryWorker = new RecoveryWorker();
+  // This is a visual starting baseline, not a generated simulation result.
+  chartRef.value?.addPoints([
+    { startingDate: new Date(chartStartingTime).toISOString(), endingPrice: 1, showPointOnChart: false },
+    { startingDate: new Date(chartEndingTime).toISOString(), endingPrice: 1, showPointOnChart: false },
+  ]);
+});
 </script>
 
 <style lang="scss">
+.RecoveryPanel {
+  position: absolute;
+  left: 6%;
+  right: 4%;
+  z-index: 30;
+}
+
 .MainPanel.Component {  
   .CalloutText {
     @apply font-light text-slate-400 select-none;

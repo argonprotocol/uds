@@ -36,9 +36,9 @@
                   <!-- <img src="../assets/unlocking-formula.png" alt="The Key Formula" class="w-[500px]" /> -->
                 </div>
 
-                <p>To learn more about this mathematical formla, and for more details on Liquid Locking, please see our 2nd whitepaper, The Fundamentals of Stabilizing a Crypto Asset.</p>
+                <p>To learn more about this mathematical formula, and for more details on Liquid Locking, please see our 2nd whitepaper, The Fundamentals for Creating a Stable Crypto Asset.</p>
 
-                <p>This Liquid Locking model is one of two tools we've created to help us better understand Argon's mechanisms. Out other model, the Stabilization Analysis Model (SAM), shows how these vaulted bitcoins stabilize the Argon if and when the argon ever falls below its peg. Click here to open.</p>
+                <p>This Liquid Locking model is one of two tools we've created to help us better understand Argon's mechanisms. Our other model, the Ultimate Death Spiral (UDS) Model, shows how these vaulted bitcoins stabilize the Argon if and when the argon ever falls below its peg. Click here to open.</p>
               </div>
               
             </DialogPanel>

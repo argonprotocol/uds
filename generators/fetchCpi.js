@@ -1,1 +1,0 @@
-// https://www.bls.gov/cpi/tables/consumer-expenditure/ce-historical-index.htm

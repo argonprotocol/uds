@@ -7,12 +7,14 @@
   </div>
   <div v-else class="flex flex-row min-h-screen w-screen">
     <div class="flex flex-col h-screen grow min-w-[60rem] min-h-[55rem]">
-      <Header />
-      <Main v-if="isReady" class="grow" />
+      <Header v-model:locked-bitcoins="lockedBitcoins" :current-price="currentPrice" :recovery-amounts="recoveryAmounts" />
+      <Main v-if="isReady" class="grow" :locked-bitcoins="lockedBitcoins" @priceChanged="currentPrice = $event" @recoveryAmountsChanged="recoveryAmounts = $event" />
       <Loading v-else-if="isLoading" class="grow" />
       <Running v-else-if="isRunning" class="grow" />
     </div>
     <WelcomeOverlay />
+    <WelcomeStepOne v-if="tourStep === 1" />
+    <WelcomeStepTwo v-else-if="tourStep === 2" />
     <InsightOverlay />
     <TooltipOverlay />
     <VideoOverlay />
@@ -27,6 +29,8 @@
 import * as Vue from 'vue';
 import InsightOverlay from './overlays/InsightOverlay.vue';
 import WelcomeOverlay from './overlays/WelcomeOverlay.vue';
+import WelcomeStepOne from './overlays/WelcomeStepOne.vue';
+import WelcomeStepTwo from './overlays/WelcomeStepTwo.vue';
 import TooltipOverlay from './overlays/TooltipOverlay.vue';
 import VideoOverlay from './overlays/VideoOverlay.vue';
 import WhitepapersOverlay from './overlays/WhitepapersOverlay.vue';
@@ -35,15 +39,25 @@ import DetailsOfLiquidLocking from './overlays/Details.vue';
 import ConfirmConfigReset from './overlays/ConfirmConfigReset.vue';
 import { storeToRefs } from 'pinia';
 import Header from './components/Header.vue';
-// import Tour from './panels/Tour.vue';
 import Running from './panels/Running.vue';
 import Main from './panels/Main.vue';
 import Loading from './panels/Loading.vue';
 import { useBasicStore } from './store';
 import emitter from './emitters/basic';
+import { readUrlInputs } from './lib/UrlInputs';
+import { mainnetDefaults } from './lib/RulesConfig';
 
 const basicStore = useBasicStore();
 const { completedWelcome, tourStep, isLoading, isRunning, isReady } = storeToRefs(basicStore);
+const urlInputs = readUrlInputs(window.location.search);
+const lockedBitcoins = Vue.ref(urlInputs.bitcoinsInLiquidLocks ?? mainnetDefaults.bitcoinsInLiquidLocks);
+const savedRules = JSON.parse(sessionStorage.getItem('rules') || '{}');
+const networkCirculation = Math.round(mainnetDefaults.circulation);
+const initialCirculation = Number(urlInputs.circulation ?? savedRules.circulation ?? networkCirculation);
+basicStore.rules.circulation = Number.isFinite(initialCirculation)
+  ? Math.max(networkCirculation, initialCirculation) : networkCirculation;
+const currentPrice = Vue.ref(basicStore.rules.usdTargetForArgon);
+const recoveryAmounts = Vue.shallowRef<{ circulation: number; lockedBitcoins: number } | null>(null);
 
 const windowWidth = Vue.ref(window.innerWidth);
 

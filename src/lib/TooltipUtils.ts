@@ -1,6 +1,6 @@
 import emitter from '../emitters/basic';
 
-export function showTooltip(event: MouseEvent, label: string) {
+export function showTooltip(event: MouseEvent | FocusEvent, label: string, options: { wrap?: boolean } = {}) {
   event.stopPropagation();
   event.preventDefault();
   const targetElem = event.currentTarget as HTMLElement;
@@ -19,7 +19,7 @@ export function showTooltip(event: MouseEvent, label: string) {
   y = targetRect.top + targetRect.height;
   arrowX = targetRect.width / 2;
     
-  emitter.emit('showTooltip', { x, y, width, arrowX, arrowY, label});
+  emitter.emit('showTooltip', { x, y, width, arrowX, arrowY, label, wrap: options.wrap ?? false});
 }
 
 export function hideTooltip() {

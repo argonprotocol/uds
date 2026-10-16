@@ -19,8 +19,8 @@
         </thead>
         <tbody class="align-middle" v-if="config.datasetIndex === 0">
           <tr>
-            <td class="text-left opacity-50">Value of Argon</td>
-            <td class="text-right font-bold">{{ formatPrice(endingPrice) }}</td>
+            <td class="text-left opacity-50">Argon Price (USD)</td>
+            <td class="text-right font-bold">${{ formatPrice(usd(endingPrice), 3) }}</td>
             <td>
               <span v-if="priceDiff" class="font-normal relative" :class="priceDiff > 0 ? 'text-green-700' : 'text-red-500'">
                 <span class="font-light">(</span><span class="font-bold">{{priceDiff > 0 ? '+' : '' }}{{ addCommas(priceDiff) }}%<span class="font-light">)</span></span>
@@ -49,8 +49,8 @@
             </td>
           </tr>
           <tr>
-            <td class="text-left opacity-50">Capital Demand</td>
-            <td class="text-right font-bold">{{ formatShorthandNumber(endingCapital) }}</td>
+            <td class="text-left opacity-50">Market Capital (USD)</td>
+            <td class="text-right font-bold">${{ formatShorthandNumber(usd(endingCapital)) }}</td>
             <td>
               <span v-if="capitalDiff" class="font-normal relative" :class="capitalDiff > 0 ? 'text-green-700' : 'text-red-500'">
                 <span class="font-light">(</span><span class="font-bold">{{capitalDiff > 0 ? '+' : '' }}{{ addCommas(capitalDiff) }}%<span class="font-light">)</span></span>
@@ -78,11 +78,16 @@
 
 <script setup lang="ts">
 import * as Vue from 'vue';
+import { useBasicStore } from '../store';
+import { toUsd } from '../lib/ArgonTarget';
 import dayjs from 'dayjs';
 import dayjsUtc from 'dayjs/plugin/utc';
 import { addCommas, formatShorthandNumber, formatPrice, formatChangePct } from '../lib/BasicUtils';
 
 dayjs.extend(dayjsUtc);
+
+const basicStore = useBasicStore();
+const usd = (value: number) => toUsd(value, basicStore.rules.usdTargetForArgon);
 
 const props = defineProps<{
   config: any

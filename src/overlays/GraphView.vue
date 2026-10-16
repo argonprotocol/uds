@@ -75,10 +75,10 @@
         </p>
         <p v-else-if="id === 'seigniorageProfits'">
           Argon operates on a seigniorage model. This means that instead of incoming capital being funneled into reserves, the capital accrues directly to the owners of the 
-          currency, which in this case is a combination of those who hold ownership tokens and who are active miners in the network.
+          currency, which in this case is a combination of those who hold Argonots and who are active miners in the network.
         </p>
         <p v-else-if="id === 'seigniorageLosses'">
-          Regardless of whether the argon floats above, below or at par with its target price, the Ownership Tokens never take a seigniorage loss.
+          Regardless of whether the argon floats above, below or at par with its target price, the Argonots never take a seigniorage loss.
         </p>
       </div>
       <div class="relative grow">
@@ -93,6 +93,8 @@
 
 <script lang="ts" setup>
 import * as Vue from 'vue';
+import { useBasicStore } from '../store';
+import { toUsd } from '../lib/ArgonTarget';
 import emitter from '../emitters/basic';
 import dayjs from 'dayjs';
 import dayjsUtc from 'dayjs/plugin/utc';
@@ -101,6 +103,9 @@ import 'chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm';
 import Marker from '../engine/Marker';
 
 dayjs.extend(dayjsUtc);
+
+const basicStore = useBasicStore();
+const usd = (value: number) => toUsd(value, basicStore.rules.usdTargetForArgon);
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, TimeScale);
 
 const props = defineProps<{
@@ -139,9 +144,9 @@ function addPoints(items: any[]) {
     } else if (id === 'argonRelativeToDollar') {
       value = item.step.dollarDiffPct;
     } else if (id === 'argonLosses') {
-      value = item.argonLossDueToFear;
+      value = usd(item.argonLossDueToFear);
     } else if (id === 'seigniorageProfits') {
-      value = item.seigniorageProfits;
+      value = usd(item.seigniorageProfits);
     } else if (id === 'seigniorageLosses') {
       value = 0;
     } else if (id === 'annualTransactions') {

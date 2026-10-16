@@ -70,6 +70,7 @@ function countDecimals(num: number | string) {
 
 export function formatPrice(price: number, decimals?: number) {
   if (!price) return '0.00';
+  if (price >= 0.10) return price.toFixed(2);
   if (price < 0.10 && price.toFixed(3).charAt(4) !== '0') {
     return price.toFixed(decimals || 3);
   } else  {
@@ -140,56 +141,6 @@ export function formatChangePct(pct: number) {
     decimals++;
     if (decimals > 10) {
       return  Math.round(pct * 100); // Prevent infinite loop
-    }
-  }
-}
-
-//////////////////////////////////
-
-export function printHeaders() {
-  console.log(
-    ''.padEnd((18)),
-    ' :  ',
-    'CPI'.padEnd(10),
-    ' -> ',
-    'CPI'.padEnd(10),
-    ' :  ',
-    'BURNED ARGONS'.padEnd(15),
-    ' :  ',
-    'CIRCULATION       '.padEnd(40),
-    ' :  ',
-    '# ARGONS FOR DOLLAR'
-  );
-}
-
-export function printRow(blockCount, lastBlock, currentBlock, argonsBurned, targetArgons, dayStats, terraPrice?) {
-  const lastCPI = lastBlock.cpi;
-  const lastArgons = lastBlock.circulation;
-  const lastCostOfArgon = targetArgons / lastBlock.circulation;
-  const lastArgonsForDollar = 1 / lastCostOfArgon;
-
-  const currentCPI = currentBlock.cpi;
-  const currentArgons = currentBlock.circulation;
-  const currentCostOfArgon = targetArgons / currentBlock.circulation;
-  const currentArgonsForDollar = 1 / currentCostOfArgon;
-
-  const day = Math.round((blockCount / AVG_BLOCKS_PER_DAY));
-  if (!dayStats[day]) {
-    dayStats[day] = {
-      start: {
-        cpi: lastCPI,
-        circulation: lastArgons,
-        exchangeRate: 1 / lastArgonsForDollar,
-      },
-      terraPrice,
-      burn: argonsBurned,
-    };
-  } else {
-    dayStats[day].burn += argonsBurned;
-    dayStats[day].end = {
-      cpi: currentCPI,
-      circulation: currentArgons,
-      exchangeRate: 1 / currentArgonsForDollar,
     }
   }
 }

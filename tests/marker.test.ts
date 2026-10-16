@@ -3,7 +3,6 @@ import dayjs from 'dayjs';
 import rules from './helpers/rules';
 import Marker from '../src/engine/Marker';
 import Vault, { IVaultToJson } from '../src/engine/Vault';
-import { TERRA_RESERVE_FUND } from '../src/engine/BlockchainRunner';
 import Reserve from '../src/engine/Reserve';
 import vaultExportCreator from './helpers/vaultExportCreator';
 import vaultExportAdvanced1 from './helpers/vaultExportAdvanced1';
@@ -30,7 +29,7 @@ test("test single day recovery", () => {
     argonsMintedByBitcoins: 0,
   });
 
-  const reserve = new Reserve(TERRA_RESERVE_FUND, TERRA_RESERVE_FUND);
+  const reserve = new Reserve(3_000_000_000, 3_000_000_000);
   const vault = Vault.fromJson(vaultExport);
   vault.setPricePerBtcOverride(10_000);
 
@@ -62,7 +61,7 @@ test("almost recovered while collapsing 1", () => {
     argonsMintedByBitcoins: 0,
   });
 
-  const reserve = new Reserve(TERRA_RESERVE_FUND, TERRA_RESERVE_FUND);
+  const reserve = new Reserve(3_000_000_000, 3_000_000_000);
   const vault = Vault.fromJson(vaultExport);
   vault.setPricePerBtcOverride(rules.btcPriceOverride);
 
@@ -94,7 +93,7 @@ test("almost recovered while collapsing 2", () => {
     argonsMintedByBitcoins: 0,
   });
 
-  const reserve = new Reserve(TERRA_RESERVE_FUND, TERRA_RESERVE_FUND);
+  const reserve = new Reserve(3_000_000_000, 3_000_000_000);
   const vault = Vault.fromJson(vaultExport);
   vault.setPricePerBtcOverride(rules.btcPriceOverride);
 
@@ -131,7 +130,7 @@ test("started recovering while collapsing", () => {
     { durationInHours: 24, currentCapital: 14245274221.944801, pctIncreaseFromTaxationCompoundedAnnually: 6.319735450124361e+21 } as Marker
   ];
   
-  const reserve = new Reserve(TERRA_RESERVE_FUND, TERRA_RESERVE_FUND);
+  const reserve = new Reserve(3_000_000_000, 3_000_000_000);
   const vault = Vault.fromJson(vaultExport);
   vault.setPricePerBtcOverride(rules.btcPriceOverride);
 
@@ -151,7 +150,7 @@ test("started recovering while collapsing", () => {
 
 test("recovery using vaultExportAdvanced1", () => {
   const durationInHours = 24;
-  const reserve = new Reserve(TERRA_RESERVE_FUND, TERRA_RESERVE_FUND);
+  const reserve = new Reserve(3_000_000_000, 3_000_000_000);
   const vault = Vault.fromJson(vaultExportAdvanced1);
   const markers: Marker[] = [];
 
@@ -185,7 +184,7 @@ test("recovery using vaultExportAdvanced1", () => {
 
 test("recovery using vaultExportAdvanced2", () => {
   const durationInHours = 24;
-  const reserve = new Reserve(TERRA_RESERVE_FUND, TERRA_RESERVE_FUND);
+  const reserve = new Reserve(3_000_000_000, 3_000_000_000);
   const vault = Vault.fromJson(vaultExportAdvanced2);
   const markers: Marker[] = [];
 

@@ -1,12 +1,14 @@
 import IRules from "../../src/interfaces/IRules";
 
 const rules: IRules = {
+  usdTargetForArgon: 1,
+  targetUpdatedAt: "2025-01-15T00:00:00.000Z",
   circulation: 18_700_000_000,
   startDateOfTerraCollapse: "2022/05/09",
 
   dollarInflation: 3.5,
 
-  enableTaxation: true,
+  enableTaxation: false,
   maxTransactionsAnnually: 1_000_000_000,
   maxMicropaymentsAnnually: 150_000_000,
 
@@ -17,6 +19,7 @@ const rules: IRules = {
   btcPriceOverride: 34_082.21,
   btcMaxTxnsPerHour: 1000,
   unvaultLatencyInHours: 240,
+  fearSelloffDelayInDays: 3,
   
   enableCertaintyGreed: true,
   certaintyGreedLow: 2,

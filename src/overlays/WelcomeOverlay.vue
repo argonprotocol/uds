@@ -11,41 +11,33 @@
             <DialogPanel class="relative transform overflow-hidden rounded-lg bg-white px-6 pb-4 pt-5 my-10 text-left shadow-xl transition-all w-full max-w-3xl">
               <div class="grow">
                 <DialogTitle as="h3" class="whitespace-nowrap px-3">
-                  <div class="text-lg font-bold text-slate-900/30">Argon Simulation Engine</div>
-                  <div class="text-4xl font-bold text-gray-900">Stabilization Analysis Model</div>
+                  <div class="text-lg font-bold text-slate-900/30">Argon System Modeling</div>
+                  <div class="text-4xl font-bold text-gray-900">Ultimate Death Spiral</div>
                 </DialogTitle>
 
                 <div class="mt-3 text-left sm:mt-5 border-y border-gray-200 pt-4 pb-6 text-base text-gray-500 space-y-3 px-3 cursor-default">
                   <p>
-                    Argon is the first crypto asset with an ability to remain stable without requiring off-chain collateral or centralized authorities. This Stabilization 
-                    Analysis Model (SAM) allows you to explore Argon's resiliance by testing it against one of the largest crypto collapses in history: the Terra stablecoin. 
-                  </p>
-                  <p>
-                    In May of 2022, Terra had a market capitalization of $18.7 billion. Days later it collapsed into a catastrophic death spiral, losing over 99.999% of its 
-                    value. It never recovered.
-                  </p>
-                  <p>
-                    No stablecoin to-date has shown an ability to survive a Terra-level death-sprial, which makes this Terra collapse the ideal scenario to test Argon's 
-                    real-world capabilities.
+                    Argon is the first crypto asset with an ability to remain stable without requiring off-chain collateral or centralized authorities. This
+                    Ultimate Death Spiral Model allows you to explore Argon's resilience by testing real-world scenarios.
                   </p>
                   
-                  <div v-if="showVideo" class="grow relative !py-5 w-full">
-                    <div class="LoadingPulse absolute inset-0 flex items-center justify-center text-slate-500/60 text-3xl uppercase">Loading Video...</div>
-                    <wistia-player media-id="o32bfzhcor"></wistia-player>
-                  </div>
-                  <div v-else VideoLink @click="expandVideo" class="border border-dashed border-gray-400 rounded-md py-4 !my-5 text-center group cursor-pointer">
-                    <div class="text-lg text-fuchsia-600 group-hover:text-fuchsia-500 cursor-pointer pl-1 font-bold">
-                      <PlayOutlined OutlineIcon class="w-6 h-6 inline-block relative top-[-1px]" />
-                      <PlaySolid SolidIcon class="w-6 h-6 inline-block relative top-[-1px]" />
-                      <span class="inline-block underline decoration-dashed decoration-fuchsia-300/50 underline-offset-[6px] ml-2">Watch <em class="italic">The Intro Video</em></span>
-                    </div>
-                    <p class="text-sm text-gray-500 mx-20 mt-2 group-hover:text-fuchsia-900/60">
-                      A short video from our founder on how Argon’s stabilization mechanisms alleviate the risk of death spirals.
-                    </p>
-                  </div>
+<!--                  <div v-if="showVideo" class="grow relative !py-5 w-full">-->
+<!--                    <div class="LoadingPulse absolute inset-0 flex items-center justify-center text-slate-500/60 text-3xl uppercase">Loading Video...</div>-->
+<!--                    <wistia-player media-id="o32bfzhcor"></wistia-player>-->
+<!--                  </div>-->
+<!--                  <div v-else VideoLink @click="expandVideo" class="border border-dashed border-gray-400 rounded-md py-4 !my-5 text-center group cursor-pointer">-->
+<!--                    <div class="text-lg text-fuchsia-600 group-hover:text-fuchsia-500 cursor-pointer pl-1 font-bold">-->
+<!--                      <PlayOutlined OutlineIcon class="w-6 h-6 inline-block relative top-[-1px]" />-->
+<!--                      <PlaySolid SolidIcon class="w-6 h-6 inline-block relative top-[-1px]" />-->
+<!--                      <span class="inline-block underline decoration-dashed decoration-fuchsia-300/50 underline-offset-[6px] ml-2">Watch <em class="italic">The Intro Video</em></span>-->
+<!--                    </div>-->
+<!--                    <p class="text-sm text-gray-500 mx-20 mt-2 group-hover:text-fuchsia-900/60">-->
+<!--                      A short video from our founder on how Argon’s stabilization mechanisms alleviate the risk of death spirals.-->
+<!--                    </p>-->
+<!--                  </div>-->
 
                   <p>
-                    We recommend first-timers <a @click="startTour">Take the Tour</a>. You can also 
+                    To learn more,
                     <a @click="openWhitepapersOverlay">read our Whitepapers</a>, explore 
                     <a @click="openFaqOverlay">Frequently Asked Questions</a>, or 
                     <a @click="openDetailsOfLiquidLocking">learn more about Argon's Stabilization Mechanisms</a>.
@@ -54,12 +46,8 @@
                 </div>
               </div>
               <div class="flex flex-row-reverse justify-start px-3">
-                <button Main ref="nextButtonRef" type="button" class="rounded-md border px-8 py-2 mt-4 ml-4 text-sm font-semibold text-white border-fuchsia-800 bg-fuchsia-600 hover:bg-fuchsia-500 hover:border-fuchsia-900 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-fuchsia-500" @click="startTour">
-                  Take the Tour
-                  <ChevronDoubleRightIcon class="w-4 h-4 inline-block relative top-[-1px]" />
-                </button>
                 <button ref="nextButtonRef" type="button" class="rounded-md bg-[#E6EAF3] border border-[#969AA5] px-8 py-2 mt-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-200 hover:border-slate-600 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-fuchsia-500" @click="close">
-                  Close Overlay
+                  Get Started
                 </button>
               </div>
             </DialogPanel>

@@ -14,13 +14,12 @@
           </svg>
         </div>
         <div class="rounded bg-white p-1 pb-1 text-sm font-light leading-6 text-gray-900 shadow-lg ring-1 ring-gray-900/5 text-right whitespace-nowrap">
-          <a @click="openConfiguration(closeFn)" class="block pt-2 pb-1 px-3 hover:text-fuchsia-600 hover:bg-[#FAF4FC]">Edit Model Configuration</a>
           <!-- <a @click="openDetailsOfLiquidLocking(closeFn)" class="block pt-2 pb-1 px-3 hover:text-fuchsia-600 border-t border-gray-200 hover:bg-[#FAF4FC]">Explore Argon's Stabilization</a> -->
           <a @click="openFaqOverlay(closeFn)" class="block pt-2 pb-1 px-3 hover:text-fuchsia-600 hover:bg-[#FAF4FC]">Frequently Asked Questions</a>
           <a @click="openWhitepapersOverlay(closeFn)" class="block pt-2 pb-1 px-3 hover:text-fuchsia-600 border-t border-gray-200 hover:bg-[#FAF4FC]">Read Our Whitepapers</a>
-          <a @click="openVideoOverlay(closeFn)" class="block pb-2 pt-1 px-3 hover:text-fuchsia-600 hover:bg-[#FAF4FC]">Watch <span class="italic">Intro to SAM 101</span></a>
+          <a v-if="false" @click="openVideoOverlay(closeFn)" class="block pb-2 pt-1 px-3 hover:text-fuchsia-600 hover:bg-[#FAF4FC]">Watch <span class="italic">Intro to Restabilization</span></a>
           <a @click="openTourOverlay(closeFn)" class="block py-2 px-3 hover:text-fuchsia-600 border-t border-gray-200 hover:bg-[#FAF4FC]">Take Our Guided Tour</a>
-          <a href="https://argon.network/docs/engine-modeling/sam" class="block py-2 px-3 hover:text-fuchsia-600 border-t border-gray-200 hover:bg-[#FAF4FC]">Open Argon Docs</a>
+          <a href="https://argon.network/docs/engine-modeling/uds" class="block py-2 px-3 hover:text-fuchsia-600 border-t border-gray-200 hover:bg-[#FAF4FC]">Open Argon Docs</a>
         </div>
       </PopoverPanel>
     </transition>
@@ -71,11 +70,6 @@ function openWhitepapersOverlay(closeFn?: () => void) {
 
 function openVideoOverlay(closeFn?: () => void) {
   emitter.emit('openVideoOverlay');
-  closeFn?.();
-}
-
-function openConfiguration(closeFn?: () => void) {
-  emitter.emit('openEditing');
   closeFn?.();
 }
 

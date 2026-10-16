@@ -8,8 +8,8 @@
     "build": "vite build",
     "-build": "vue-tsc -b && vite build",
     "test": "vitest run",
-    "generate:scenarios": "node --import tsx generators/buildBaseScenarios.ts",
     "update:bitcoin": "node generators/fetchBitcoinPrices.js",
+    "update:argon": "node --import tsx generators/fetchArgonTarget.js",
     "deploy": "yarn build && gh-pages -d dist",
     "preview": "vite preview"
   },

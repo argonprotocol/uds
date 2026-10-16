@@ -1,4 +1,6 @@
 export default interface IRules {
+  usdTargetForArgon: number;
+  targetUpdatedAt: string;
   circulation: number;
   startDateOfTerraCollapse: string;
 
@@ -15,6 +17,7 @@ export default interface IRules {
   btcPriceOverride: number;
   btcMaxTxnsPerHour: number;
   unvaultLatencyInHours: number;
+  fearSelloffDelayInDays: number;
 
   enableCertaintyGreed: boolean;
   certaintyGreedLow: number;

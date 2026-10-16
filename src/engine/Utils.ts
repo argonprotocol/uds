@@ -89,19 +89,3 @@ export function isInt(n: any) {
   if (typeof n === 'string') return !n.includes('.');
   return n % 1 === 0;
 }
-
-export function toNumber(value: string): number {
-  if (typeof value === 'number') return value;
-  return Number(value.replace(/[^0-9.]/g, ''));
-}
-
-/////////////////////////////////////////////////////////////
-
-export function calculateWageProtection(payment, cpi) {
-  return payment + (payment * cpi);
-}
-
-export function calculateTaxes(payment, currentCPI) {
-  const taxRate = currentCPI >= 0.1 ? 0.3 : 0.2 + currentCPI;
-  return payment * taxRate;
-}

@@ -3,6 +3,7 @@ import utc from "dayjs/plugin/utc";
 import BtcPrices from "./BtcPrices";
 import { addCommas, cleanRound, divide } from "./Utils";
 import IRules from "../interfaces/IRules";
+import { toUsd, toTargetUnits, validateTarget } from "../lib/ArgonTarget";
 
 dayjs.extend(utc);
 
@@ -24,7 +25,7 @@ export default class Vault {
   private cache: {
     pricePerBtc?: number;
     bitcoinCount?: number;
-    dollarsPerBitcoinUnlock?: number;
+    argonsPerBitcoinUnlock?: number;
     profitsToDate?: number;
     totalLockValue?: number;
     totalUnlockValue?: number;
@@ -36,7 +37,8 @@ export default class Vault {
 
   private btcPrices = new BtcPrices();
 
-  constructor(currentDate: Dayjs = dayjs.utc()) {
+  constructor(currentDate: Dayjs = dayjs.utc(), public readonly usdTargetForArgon: number = 1) {
+    validateTarget(usdTargetForArgon);
     this.currentDate = currentDate;
   }
 
@@ -46,6 +48,11 @@ export default class Vault {
     return this.cache.pricePerBtc ??= this.pricePerBtcOverride ?? (this.btcPrices.getByDate(this.currentDate).price || this.btcPrices.getLatest().price);
   }
 
+  // Position prices, pending values, and minting balances use target-value units.
+  private get valuePerBtcAtTarget() {
+    return toTargetUnits(this.pricePerBtc, this.usdTargetForArgon);
+  }
+
   public get bitcoinCount() {
     this.cache.bitcoinCount = this.cache.bitcoinCount ?? Object.values(this.byDate).reduce((value, item) => {
       return value + item.ratchetedQty + item.nonRatchetedQty;
@@ -53,16 +60,19 @@ export default class Vault {
     return this.cache.bitcoinCount;
   }
 
+  public get argonsPerBitcoinUnlock(): number {
+    return this.cache.argonsPerBitcoinUnlock ??= this.bitcoinCount ? divide(this.getTotalUnlockValue(), this.bitcoinCount) : 0;
+  }
+
   public get dollarsPerBitcoinUnlock(): number {
-    this.cache.dollarsPerBitcoinUnlock = this.cache.dollarsPerBitcoinUnlock ?? (this.bitcoinCount ? divide(this.getTotalUnlockValue(), this.bitcoinCount) : 0);
-    return this.cache.dollarsPerBitcoinUnlock;
+    return toUsd(this.argonsPerBitcoinUnlock, this.usdTargetForArgon);
   }
 
   public get profitsToDate() {
     this.cache.profitsToDate = this.cache.profitsToDate ?? Object.entries(this.profitsByDate).reduce((value, [date, profit]) => {
       return dayjs.utc(date).isAfter(this.currentDate) ? value : value + profit;
     }, 0);
-    return this.cache.profitsToDate;
+    return toUsd(this.cache.profitsToDate, this.usdTargetForArgon);
   }
 
   public setPricePerBtcOverride(price: number | undefined) {
@@ -87,7 +97,7 @@ export default class Vault {
     this.updateRatchets(maxMintingCapacity, rules);
     this.clearCache();
 
-    const pricePerBtc = this.pricePerBtc;
+    const pricePerBtc = this.valuePerBtcAtTarget;
     const availableMintingSpace = Math.max(maxMintingCapacity - this.argonsMintedByBitcoins, 0);
     if (availableMintingSpace <= 0) return;
 
@@ -124,8 +134,8 @@ export default class Vault {
   }
 
   private getUnlockValue(item: IVaultItem) {
-    const ratchetedValue = (item.ratchetedQty * Math.min(item.ratchetedPrice, this.pricePerBtc)) - item.pendingRatchetValue;
-    const nonRatchetedValue = item.nonRatchetedQty * Math.min(item.nonRatchetedPrice, this.pricePerBtc);
+    const ratchetedValue = (item.ratchetedQty * Math.min(item.ratchetedPrice, this.valuePerBtcAtTarget)) - item.pendingRatchetValue;
+    const nonRatchetedValue = item.nonRatchetedQty * Math.min(item.nonRatchetedPrice, this.valuePerBtcAtTarget);
     return ratchetedValue + nonRatchetedValue;
   }
 
@@ -135,6 +145,7 @@ export default class Vault {
     }, 0);
   }
 
+  // Legacy local "dollar" names below hold target-value units, not USD.
   public burnCirculation(circulationToBurn: number, argonRatioPrice: number, maxBitcoinsToUnlock: number): number {
     const argonsNeededPerBitcoinDollar = Vault.calculateUnlockBurnPerBitcoinDollar(argonRatioPrice);
 
@@ -189,7 +200,7 @@ export default class Vault {
       if (type === 'ratcheted' && item.pendingRatchetValue > 0) {
         lockPrice -= divide(item.pendingRatchetValue, item.ratchetedQty, 20);
       }
-      const unlockPrice = Math.min(lockPrice, this.pricePerBtc);
+      const unlockPrice = Math.min(lockPrice, this.valuePerBtcAtTarget);
   
       const dollarValueOfUnlock = Math.min(qty * unlockPrice, bitcoinsToUnlock * unlockPrice, dollarsRemaining);
       const bitcoinsUnlocked = divide(dollarValueOfUnlock, unlockPrice, 20);
@@ -197,7 +208,7 @@ export default class Vault {
       const purchasePriceOfArgons = argonsNeededForUnlock * argonRatioPrice;
 
       savingsFromUnlock += dollarValueOfUnlock - purchasePriceOfArgons;
-      lossAmountAverted += Math.max(unlockPrice - this.pricePerBtc, 0) * totalBitcoinsUnlocked;
+      lossAmountAverted += Math.max(unlockPrice - this.valuePerBtcAtTarget, 0) * totalBitcoinsUnlocked;
       circulationBurned += argonsNeededForUnlock;
       dollarsRemaining -= dollarValueOfUnlock;
       totalBitcoinsUnlocked += bitcoinsUnlocked;
@@ -234,14 +245,14 @@ export default class Vault {
 
   public argonsNeededToUnlock(bitcoinsToUnlock: number, agonRatioPrice: number, ) {
     const unlockBurnPerBitcoinDollar = Vault.calculateUnlockBurnPerBitcoinDollar(agonRatioPrice);
-    return this.pricePerBtc * bitcoinsToUnlock * unlockBurnPerBitcoinDollar;
+    return this.valuePerBtcAtTarget * bitcoinsToUnlock * unlockBurnPerBitcoinDollar;
   }
 
   public exportMeta(argonRatioPrice: number): IVaultMeta {
     const bitcoinCount = this.bitcoinCount;
-    const argonsBurnedPerBitcoinDollar = Vault.calculateUnlockBurnPerBitcoinDollar(argonRatioPrice);
+    const argonsBurnedPerBitcoinDollar = toTargetUnits(Vault.calculateUnlockBurnPerBitcoinDollar(argonRatioPrice), this.usdTargetForArgon);
     const dollarsPerBitcoinUnlock = this.dollarsPerBitcoinUnlock;
-    const dollarsPerBitcoinLock = this.bitcoinCount ? divide(this.getTotalLockValue(), this.bitcoinCount) : 0;
+    const dollarsPerBitcoinLock = this.bitcoinCount ? toUsd(divide(this.getTotalLockValue(), this.bitcoinCount), this.usdTargetForArgon) : 0;
     const argonBurnCapacity = bitcoinCount * dollarsPerBitcoinUnlock * argonsBurnedPerBitcoinDollar;
     
     return {
@@ -258,6 +269,7 @@ export default class Vault {
 
   public toJson(): IVaultToJson {    
     return {
+      usdTargetForArgon: this.usdTargetForArgon,
       argonsMintedByBitcoins: this.argonsMintedByBitcoins,
       byDate: Object.fromEntries(Object.entries(this.byDate).map(([date, item]) => [date, { ...item, date: item.date.format('YYYY-MM-DD') }])),
       ratchetMintingSpace: this.ratchetMintingSpace,
@@ -283,7 +295,7 @@ export default class Vault {
 
   private updateRatchets(maxMintingCapacity: number, rules: IRules) {
     const ratchetWhenPriceChangeDec = rules.btcRatchetWhenPriceChangePct / 100;
-    const pricePerBtc = this.pricePerBtc;
+    const pricePerBtc = this.valuePerBtcAtTarget;
 
     // We're running the ratcheting code before running the new bitcoin vaulting code. In order to ensure
     // an even distribution, we will throttle the ratcheting space.
@@ -337,6 +349,7 @@ export default class Vault {
     this.profitsByDate[this.currentDate.format('YYYY-MM-DD')] += profit;  
   }
 
+  // Redemption multiplier; divide by the USD target for ARGN per Bitcoin dollar.
   public static calculateUnlockBurnPerBitcoinDollar(argonRatioPrice: number): number {
     const r = argonRatioPrice;
     const b = 1;
@@ -352,7 +365,7 @@ export default class Vault {
   }
 
   public static fromJson(data: IVaultToJson) {
-    const vault = new Vault(dayjs.utc(data.currentDate));
+    const vault = new Vault(dayjs.utc(data.currentDate), data.usdTargetForArgon ?? 1);
     vault.argonsMintedByBitcoins = data.argonsMintedByBitcoins;
     vault.byDate = Object.fromEntries(Object.entries(data.byDate).map(([date, item]) => [date, { ...item, date: dayjs.utc(date) }]));
     vault.ratchetMintingSpace = data.ratchetMintingSpace;
@@ -367,6 +380,7 @@ function calculateProfit(buyPrice: number, sellPrice: number): number {
 }
 
 export interface IVaultToJson {
+  usdTargetForArgon?: number; // Older internal fixtures use the original $1 target.
   argonsMintedByBitcoins: number;
   byDate: { [date: string]: IVaultItemToJson };
   ratchetMintingSpace: number;

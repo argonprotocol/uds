@@ -1,4 +1,11 @@
+import snapshot from '../data/argonBasics.json';
+import { readMainnetSnapshot } from './MainnetSnapshot';
+
+export const mainnetDefaults = readMainnetSnapshot(snapshot);
+
 export interface IRules {
+  usdTargetForArgon: number;
+  targetUpdatedAt: string;
   circulation: number;
   startDateOfTerraCollapse: string;
   dollarInflation: number;
@@ -12,6 +19,7 @@ export interface IRules {
   btcPriceOverride: number;
   btcMaxTxnsPerHour: number;
   unvaultLatencyInHours: number;
+  fearSelloffDelayInDays: number;
   enableCertaintyGreed: boolean;
   certaintyGreedLow: number;
   certaintyGreedHigh: number;
@@ -28,12 +36,14 @@ export interface IRules {
 }
 
 const rules = {
-  circulation: 18_700_000_000,
+  usdTargetForArgon: mainnetDefaults.usdTargetForArgon,
+  targetUpdatedAt: mainnetDefaults.lastUpdatedAt,
+  circulation: mainnetDefaults.circulation,
   startDateOfTerraCollapse: '2022/05/09',
 
   dollarInflation: 3.5,
 
-  enableTaxation: true,
+  enableTaxation: false,
   maxTransactionsAnnually: 1_000_000_000,
   maxMicropaymentsAnnually: 150_000_000,
 
@@ -41,16 +51,17 @@ const rules = {
   btcVaultCapacityPct: 100,
   btcRatchetingPct: 100,
   btcRatchetWhenPriceChangePct: 10,
-  btcPriceOverride: 34_082.21,
-  btcMaxTxnsPerHour: 1000,
-  unvaultLatencyInHours: 120,
+  btcPriceOverride: 86_582.20,
+  btcMaxTxnsPerHour: 25_000,
+  unvaultLatencyInHours: 12,
+  fearSelloffDelayInDays: 3,
 
   enableCertaintyGreed: true,
   certaintyGreedLow: 2,
   certaintyGreedHigh: 20,
   certaintyLatencyLow: 24,
   certaintyLatencyHigh: 48,
-  certaintyMaxDailyIncrease: 0.5, // Fraction of prior capital per day: 0.5 = 50%, not 0.5%.
+  certaintyMaxDailyIncrease: 1, // Fraction of prior capital per day: 0.5 = 50%, not 0.5%.
 
   enableSpeculativeGreed: false,
   speculativeGreedLow: 10,

@@ -36,11 +36,11 @@
                   <div class="flex flex-row space-x-1 divide-x divide-slate-300/80 text-center w-full text-slate-500">
                     <div :class="{'opacity-30': graphIsOpen }" class="relative w-1/2 pb-2 cursor-pointer hover:text-lime-700" insightId="argonRelativeToDollar" @mouseenter="showInsight" @mouseleave="hideInsight" @click="toggleGraphView" align="grandparent">
                       {{ item.step.dollarDiffPct > 0 ? '+' : '' }}{{ item.step.dollarDiffPct }}%
-                      <div>Relativity to Dollar</div>
+                      <div>Relative Purchasing Power</div>
                       <div VerticalLineWithTopFade class="absolute bottom-[-37px] left-1/2 h-7 -translate-x-1/2"></div>
                     </div>
                     <div :class="{'opacity-30': graphIsOpen }" class="relative w-1/2 pb-2 cursor-pointer hover:text-red-700" insightId="argonLosses" @mouseenter="showInsight" @mouseleave="hideInsight" @click="toggleGraphView" align="grandparent">
-                      ${{ formatAsBillions(item.argonLossDueToFear) }}
+                      ${{ formatAsBillions(usd(item.argonLossDueToFear)) }}
                       <div>Losses Due to Fear</div>
                       <div VerticalLineWithTopFade class="absolute bottom-[-37px] left-1/2 h-7 -translate-x-1/2"></div>
                     </div>
@@ -48,10 +48,10 @@
                 </div>
 
                 <div class="relative w-1/4 flex flex-col items-center space-x-1 border border-t-0 border-slate-300/90 rounded-b pb-1 pt-1 px-0.5">
-                  <h4 :class="{'opacity-60': graphIsOpen }" class="font-bold py-2 opacity-80">Ownership Tokens</h4>
+                  <h4 :class="{'opacity-60': graphIsOpen }" class="font-bold py-2 opacity-80">Miners & Argonot Tokens</h4>
                   <div class="flex flex-row space-x-1 divide-x divide-slate-300/80 text-center w-full text-slate-500">
                     <div :class="{'opacity-30': graphIsOpen }" class="relative w-1/2 pb-2 cursor-pointer hover:text-lime-700" insightId="seigniorageProfits" @mouseenter="showInsight" @mouseleave="hideInsight" @click="toggleGraphView" align="grandparent">
-                      ${{ formatAsBillions(item.seigniorageProfits) }}
+                      ${{ formatAsBillions(usd(item.seigniorageProfits)) }}
                       <div>Seigniorage Profits</div>
                       <div VerticalLineWithTopFade class="absolute bottom-[-37px] left-1/2 h-7 -translate-x-1/2"></div>
                     </div>
@@ -64,16 +64,16 @@
                 </div>
 
                 <div class="w-1/4 relative flex flex-col items-center space-x-1 border border-t-0 border-slate-300/90 rounded-b pb-1 pt-1 px-0.5">
-                  <h4 :class="{'opacity-60': graphIsOpen }" class="font-bold py-2 opacity-80">Transactional Usage</h4>
+                  <h4 :class="{'opacity-60': graphIsOpen }" class="font-bold py-2 opacity-80">Sidechain Usage</h4>
                   <div class="flex flex-row space-x-1 divide-x divide-slate-300/80 text-center w-full text-slate-500">
                     <div :class="{'opacity-30': graphIsOpen }" class="relative w-1/2 pb-2 cursor-pointer hover:text-blue-700" insightId="annualTransactions" @mouseenter="showInsight" @mouseleave="hideInsight" @click="toggleGraphView" align="grandparent">
                       {{ formatAsBillions(item.annualTransactions) }}
-                      <div>Peer-to-Peer Txns</div>
+                      <div>Sidechain Txns</div>
                       <div VerticalLineWithTopFade class="absolute bottom-[-37px] left-1/2 h-7 -translate-x-1/2"></div>
                     </div>
                     <div :class="{'opacity-30': graphIsOpen }" class="relative w-1/2 pb-2 cursor-pointer hover:text-blue-700" insightId="annualMicropayments" @mouseenter="showInsight" @mouseleave="hideInsight" @click="toggleGraphView" align="grandparent">
                       ₳{{ formatAsBillions(Marker.calculateWageProtectedPrice(item.annualMicropayments, item.lowestPrice)) }}
-                      <div>Micropayment ARR</div>
+                      <div>Micropayments ARR</div>
                       <div VerticalLineWithTopFade class="absolute bottom-[-37px] left-1/2 h-7 -translate-x-1/2"></div>
                     </div>
                   </div>
@@ -93,7 +93,7 @@
               <div class="flex flex-col h-full">
                 <div class="text-center items-center text-4xl font-bold text-slate-600 mt-1 relative pt-0 pb-3">
                   <span insightId="price" @mouseenter="showInsight" @mouseleave="hideInsight" @click="toggleGraphView" align="center" class="relative">
-                    ${{formatPrice(step.currentPrice)}} <span class="opacity-90 font-light">&nbsp;for&nbsp;</span> ₳1.00
+                    ${{formatPrice(usd(step.currentPrice), 3)}} <span class="opacity-90 font-light">&nbsp;for&nbsp;</span> ₳1.00
                     <div class="absolute bottom-0 -right-2 translate-x-full">
                       <span v-if="priceChangePct" class="text-xl font-semibold relative top-[-0.42rem]">
                         <span :class="priceChangePct > 0 ? 'text-green-600' : 'text-red-500'">{{ priceChangePct > 0 ? '+' : '' }}{{ addCommas(priceChangePct) }}%</span>
@@ -181,10 +181,10 @@
                     <div HorizontalLine class="w-full absolute top-0 left-0"></div>
                     <div insightId="unbalanced" @mouseenter="showInsight" @mouseleave="hideInsight" @click="toggleGraphView" align="center" class="absolute top-3 left-1/2 -translate-x-1/2 text-center text-sm text-slate-400/80 uppercase whitespace-nowrap z-1">
                       <span v-if="formatAsBillions(item.endingCapital) === formatAsBillions(item.endingCirculation)">Both sides are in balance</span>
-                      <span v-else-if="item.endingCapital > item.endingCirculation">Demand has {{ formatAsBillions(item.endingCapital - item.endingCirculation) }} more than supply</span>
-                      <span v-else>Supply has {{ formatAsBillions(item.endingCirculation - item.endingCapital) }} more than demand</span>
+                      <span v-else-if="item.endingCapital > item.endingCirculation">Demand exceeds supply by ₳{{ formatAsBillions(item.endingCapital - item.endingCirculation) }} at target</span>
+                      <span v-else>Supply exceeds demand by ₳{{ formatAsBillions(item.endingCirculation - item.endingCapital) }} at target</span>
                     </div>
-                    <div yAxis class="flex flex-col px-2 justify-between h-full space-y-4 text-center pt-20">
+                    <div yAxis title="Scale in ARGN equivalents at target; demand amounts are displayed in USD" class="flex flex-col px-2 justify-between h-full space-y-4 text-center pt-20">
                       <div class="mx-3"><span>{{formatAsBillions(maxSupplyDemand)}}</span></div>
                       <div class="mx-3"><span>{{formatAsBillions(maxSupplyDemand * 0.8)}}</span></div>
                       <div class="mx-3"><span>{{formatAsBillions(maxSupplyDemand * 0.6)}}</span></div>
@@ -196,7 +196,7 @@
                   <div class="w-1/4 flex flex-col relative">
                     <div HorizontalLine class="w-1/2 absolute top-0 right-1/2"></div>
                     <div VerticalLineWithBottomFade class="relative left-1/2 h-16"></div>
-                    <SlotMachine id="demand" bgColor="#668ACD" :yesterday="getPreviousItem(item).endingCapital" :today="item.endingCapital" :tomorrow="getNextItem(item).endingCapital" :pct="demandPct" insightId="demand" @mouseenter="showInsight" @mouseleave="hideInsight" position="bottom" align="center" class="w-full grow" />
+                    <SlotMachine id="demand" bgColor="#668ACD" :yesterday="usd(getPreviousItem(item).endingCapital)" :today="usd(item.endingCapital)" :tomorrow="usd(getNextItem(item).endingCapital)" :pct="demandPct" insightId="demand" @mouseenter="showInsight" @mouseleave="hideInsight" position="bottom" align="center" class="w-full grow" />
                   </div>
                   <div class="grow relative">
                     <div class="absolute top-20 bottom-0 left-14 flex flex-col z-40 justify-around">
@@ -208,7 +208,7 @@
                         <div HorizontalLine class="ArrowLeft w-10 absolute top-1/2 -left-1 -translate-x-full -translate-y-1/2 opacity-20"></div>
                         <div v-if="item.capitalAddedMap.SpeculativeGreed" class="absolute top-0 left-0 w-full h-full text-sm flex flex-row">
                           <div class="flex-1 text-left pr-2 leading-5 text-slate-400">From Profit<br />Speculators</div>
-                          <div class="bg-[#668ACD] w-28 flex items-center justify-center text-lg text-white font-semibold shadow">+ ${{ formatAsBillions(item.capitalAddedMap.SpeculativeGreed || 0) }}</div>
+                          <div class="bg-[#668ACD] w-28 flex items-center justify-center text-lg text-white font-semibold shadow">+ ${{ formatAsBillions(usd(item.capitalAddedMap.SpeculativeGreed || 0)) }}</div>
                           <div HorizontalLine class="ArrowRight w-10 absolute top-1/2 -right-1 translate-x-full -translate-y-1/2"></div>
                         </div>
                       </div>
@@ -219,7 +219,7 @@
                         <div class="flex-1 text-left pl-2 leading-5 opacity-20">Inflow From<br />Profit Certainty</div>
                         <div HorizontalLine class="ArrowLeft w-10 absolute top-1/2 -left-1 -translate-x-full -translate-y-1/2 opacity-20"></div>
                         <div v-if="item.capitalAddedMap.CertaintyGreed" class="absolute top-0 left-0 w-full h-full text-sm flex flex-row">
-                          <div class="bg-[#668ACD] w-28 flex items-center justify-center text-lg text-white font-semibold shadow">+ ${{ formatAsBillions(item.capitalAddedMap.CertaintyGreed || 0) }}</div>
+                          <div class="bg-[#668ACD] w-28 flex items-center justify-center text-lg text-white font-semibold shadow">+ ${{ formatAsBillions(usd(item.capitalAddedMap.CertaintyGreed || 0)) }}</div>
                           <div class="flex-1 text-left pl-2 leading-5 text-slate-400">Inflow From<br />Profit Certainty</div>
                           <div HorizontalLine class="ArrowLeft w-10 absolute top-1/2 -left-1 -translate-x-full -translate-y-1/2"></div>
                         </div>
@@ -228,16 +228,16 @@
                       <div class="relative group text-sm flex flex-row">
                         <div :insightId="item.capitalRemovedMap.TerraCollapse ? 'terraCapitalDecrease' : 'terraCapitalIncrease'" @mouseenter="showInsight" @mouseleave="hideInsight" @click="toggleGraphView" position="top" align="right" class="absolute z-10 hidden group-hover:block -top-3 -right-3 border-[1.5px] border-l-0 border-dashed border-slate-400/50" style="width: calc(100% + 60px); height: calc(100% + 24px)"></div>
                         <div class="w-28 flex items-center rounded-sm border border-sky-900/10 justify-center text-lg font-semibold text-slate-300">
-                          <span v-if="item.capitalRemovedMap.TerraCollapse">-</span><span v-else-if="item.capitalAddedMap.TerraGrowth">+</span> ${{formatAsBillions(item.capitalRemovedMap.TerraCollapse || item.capitalAddedMap.TerraGrowth || 0)}}
+                          <span v-if="item.capitalRemovedMap.TerraCollapse">-</span><span v-else-if="item.capitalAddedMap.TerraGrowth">+</span> ${{formatAsBillions(usd(item.capitalRemovedMap.TerraCollapse || item.capitalAddedMap.TerraGrowth || 0))}}
                         </div>
-                        <div v-if="item.capitalRemovedMap.TerraCollapse" class="flex-1 text-left pl-2 leading-5 opacity-20">Outflow From Terra's<br />Historical Collapse</div>
+                        <div v-if="item.capitalRemovedMap.TerraCollapse" class="flex-1 text-left pl-2 leading-5 opacity-20">Outflow From Modeled<br />Terra-Shaped Collapse</div>
                         <div v-else class="flex-1 text-left pl-2 leading-5 opacity-20">Inflow From Terra's<br />Rising Popularity</div>
                         <div HorizontalLine class="ArrowRight w-10 absolute top-1/2 -left-3 -translate-x-full -translate-y-1/2 opacity-20"></div>
                         <div v-if="item.capitalRemovedMap.TerraCollapse || item.capitalAddedMap.TerraGrowth" class="absolute top-0 left-0 w-full h-full text-sm flex flex-row">
                           <div class="bg-[#668ACD] w-28 flex items-center justify-center text-lg text-white font-semibold shadow">
-                            <span v-if="item.capitalRemovedMap.TerraCollapse">-&nbsp;</span><span v-else-if="item.capitalAddedMap.TerraGrowth">+&nbsp;</span> ${{formatAsBillions(item.capitalRemovedMap.TerraCollapse || item.capitalAddedMap.TerraGrowth || 0)}}
+                            <span v-if="item.capitalRemovedMap.TerraCollapse">-&nbsp;</span><span v-else-if="item.capitalAddedMap.TerraGrowth">+&nbsp;</span> ${{formatAsBillions(usd(item.capitalRemovedMap.TerraCollapse || item.capitalAddedMap.TerraGrowth || 0))}}
                           </div>
-                          <div v-if="item.capitalRemovedMap.TerraCollapse" class="flex-1 text-left pl-2 leading-5 text-slate-400">Outflow From Terra's<br />Historical Collapse</div>
+                          <div v-if="item.capitalRemovedMap.TerraCollapse" class="flex-1 text-left pl-2 leading-5 text-slate-400">Outflow From Modeled<br />Terra-Shaped Collapse</div>
                           <div v-else class="flex-1 text-left pl-2 leading-5 text-slate-400">Inflow From Terra's<br />Rising Popularity</div>
                           <div HorizontalLine v-if="item.capitalRemovedMap.TerraCollapse" class="ArrowRight w-10 absolute top-1/2 -left-3 -translate-x-full -translate-y-1/2"></div>
                           <div HorizontalLine v-else-if="item.capitalAddedMap.TerraGrowth" class="ArrowLeft w-10 absolute top-1/2 -left-1 -translate-x-full -translate-y-1/2"></div>
@@ -281,6 +281,8 @@
 
 <script setup lang="ts">
 import * as Vue from 'vue';
+import { useBasicStore } from '../store';
+import { toUsd } from '../lib/ArgonTarget';
 import dayjs from 'dayjs';
 import dayjsUtc from 'dayjs/plugin/utc';
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue'
@@ -301,6 +303,9 @@ import AlertIcon from '../assets/alert.svg';
 import * as InsightUtils from '../lib/InsightUtils';
 
 dayjs.extend(dayjsUtc);
+
+const basicStore = useBasicStore();
+const usd = (value: number) => toUsd(value, basicStore.rules.usdTargetForArgon);
 
 const isOpen = Vue.ref(false);
 const dialogRef = Vue.ref<HTMLDialogElement | null>(null);
@@ -439,9 +444,9 @@ function selectPreviousStep() {
   if (!itemsActive.value.length) return;
   
   if (currentIdx.value === null) {
-    currentIdx.value = firstIdx.value;
+    currentIdx.value = 0;
   } else {
-    currentIdx.value = Math.max(currentIdx.value - 1, firstIdx.value);
+    currentIdx.value = Math.max(currentIdx.value - 1, 0);
   }
 
   selectItem(currentIdx.value);

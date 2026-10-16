@@ -1,5 +1,4 @@
 import { expect, test } from 'vitest';
-import { TERRA_COLLAPSE_DATE, TERRA_LAUNCH_DATE } from '../src/engine/BlockchainRunner';
 import dayjs from 'dayjs';
 import Vault from '../src/engine/Vault';
 import { divide } from '../src/engine/Utils';
@@ -7,13 +6,13 @@ import rules from './helpers/rules';
 import IRules from '../src/interfaces/IRules';
 
 test("basic vault pricing", () => {
-  const vault = new Vault(dayjs.utc(TERRA_COLLAPSE_DATE));
+  const vault = new Vault(dayjs.utc('2022-05-09T00:00:00Z'));
   expect(vault.pricePerBtc).toBe(30_175.71);
 });
 
 test("basic vault", () => {
   const vault = new Vault();
-  const vaultStartDate = dayjs.utc(TERRA_COLLAPSE_DATE);
+  const vaultStartDate = dayjs.utc('2022-05-09T00:00:00Z');
 
   vault.setPricePerBtcOverride(10_000);
   vault.loadForDate(100_000, vaultStartDate, rules);
@@ -26,7 +25,7 @@ test("basic vault", () => {
 
 test("expired bitcoins to unlock and be replaced", () => {
   const vault = new Vault();
-  const vaultStartEnd = dayjs.utc(TERRA_COLLAPSE_DATE);
+  const vaultStartEnd = dayjs.utc('2022-05-09T00:00:00Z');
 
   vault.setPricePerBtcOverride(10_000);
   vault.loadForDate(100_000, vaultStartEnd.subtract(380, 'days'), rules);
@@ -45,7 +44,7 @@ test("expired bitcoins to unlock and be replaced", () => {
 
 test("ratcheting down with no extra bitcoins", () => {
   const vault = new Vault();
-  const firstVaultDate = dayjs.utc(TERRA_COLLAPSE_DATE);
+  const firstVaultDate = dayjs.utc('2022-05-09T00:00:00Z');
 
   vault.setPricePerBtcOverride(10_000);
   vault.loadForDate(200_000, firstVaultDate, rules);
@@ -66,7 +65,7 @@ test("ratcheting down with no extra bitcoins", () => {
 
 test("ratcheting down with room for extra bitcoins", () => {
   const vault = new Vault();
-  const vaultStartDate = dayjs.utc(TERRA_COLLAPSE_DATE);
+  const vaultStartDate = dayjs.utc('2022-05-09T00:00:00Z');
 
   vault.setPricePerBtcOverride(10_000);
   vault.loadForDate(200_000, vaultStartDate, rules);
@@ -128,8 +127,8 @@ test("ratcheting up", () => {
 test("from terra launch to collapse", () => {
   const customRules: IRules = { ...rules, btcRatchetingPct: 20 };
 
-  const startOnDate = dayjs.utc(TERRA_LAUNCH_DATE);
-  const endBeforeDate = dayjs.utc(TERRA_COLLAPSE_DATE);
+  const startOnDate = dayjs.utc('2020-10-01T00:00:00Z');
+  const endBeforeDate = dayjs.utc('2022-05-09T00:00:00Z');
   const lengthInDays = endBeforeDate.diff(startOnDate, 'days');
   
   const vault = new Vault();
@@ -160,7 +159,7 @@ test("from terra launch to collapse", () => {
 });
 
 test("vault from meta to unvault", () => {
-  const vaultStartDate = dayjs.utc(TERRA_COLLAPSE_DATE).format('YYYY-MM-DD');
+  const vaultStartDate = dayjs.utc('2022-05-09T00:00:00Z').format('YYYY-MM-DD');
   const vault = Vault.fromJson({
     argonsMintedByBitcoins: 200_000,
     byDate: {

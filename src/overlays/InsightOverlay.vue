@@ -36,7 +36,7 @@
         </div>
 
         <div v-if="id === 'argonRelativeToDollar'" class="space-y-2">
-          <p>Argon uses an internal inflation index to maintain consistent value over time. This means the Argon is a truly hard currency with no inflation or deflation. Since the dollar is (and has historically been) an inflationary currency, Argon's value is expected to consistently increase over time relative to the dollar.</p>
+          <p>This compares the simulated Argon price ratio with a dollar purchasing-power index that starts at 1.00 and declines with modeled inflation. It is a relative comparison, not a historical USD exchange-rate series. Dollar readouts use the frozen mainnet target of ${{ formatPrice(rules.usdTargetForArgon, 3) }} throughout the run.</p>
         </div>
 
         <div v-if="id === 'argonLosses'" class="space-y-2">
@@ -44,34 +44,33 @@
         </div>
 
         <div v-if="id === 'seigniorageProfits'" class="space-y-2">
-          <p>Argon's stabilization mechanisms have no need for U.S. Treasury Bonds or reserve accounts. This allows for a seigniorage business model, which means all incoming capital accrues directly to the network's Ownership Tokens and network mining nodes..</p>
+          <p>Argon's stabilization mechanisms have no need for U.S. Treasury Bonds or reserve accounts. This allows for a seigniorage business model, which means all incoming capital accrues directly to the network's Argonots and network mining nodes..</p>
         </div>
 
         <div v-if="id === 'seigniorageLosses'" class="space-y-2">
-          <p>In no circumstance will Ownership Tokens incur losses due to Argon instability. The token's primary purpose is to provide governance oversight and absorb excess capital when Argon's price rises above target. If Argon drops below target, instead of penalizing Ownership Tokens, other mechanisms are used to restabilize.</p>
+          <p>In no circumstance will Argonots incur losses due to Argon instability. The token's primary purpose is to provide governance oversight and absorb excess capital when Argon's price rises above target. If Argon drops below target, instead of penalizing Argonots, other mechanisms are used to restabilize.</p>
         </div>
 
         <div v-if="id === 'annualTransactions'" class="space-y-2">
           <p>
-            All standard peer-to-peer Argon transactions are taxed a flat 20¢ regardless of whether the transaction is valued at $2 or $2B. The stat shown above is the total number of 
+            All Argon Sidechain transactions are modeled with a flat ₳0.20 tax regardless of whether the transaction is valued at $2 or $2B. The stat shown above is the total number of
             annual transactions across the entire network. You can customize this property in your model's configuration settings.
           </p>
         </div>
 
         <div v-if="id === 'annualMicropayments'" class="space-y-2">
-          <p>Micropayments are categorized as any transaction valued at less than $1.00. The network enacts a 20% tax on these transactions. Due to our novel Wage Protection algorithm, the quantity of taxes that are burned when Argon's price drops below target rises substantially. See <em>Whitepaper #2</em> for more details.</p>
-          <p>We expect the vast majority of micropayments to be driven by demand from the Ulixee Data Network.</p>
+          <p>Micropayments are categorized as any Sidechain transaction valued at less than $1.00. The network enacts a 20% tax on these transactions. Due to Argon's novel Wage Protection algorithm, the quantity of taxes that are burned when Argon's price drops below target rises substantially. See <em>Whitepapers</em> for more details.</p>
         </div>
         
         <!-- ---------------------------------------------------- -->
 
         <div v-if="id === 'price'" class="space-y-2">
           <p>
-            <template v-if="item.startingPrice === item.lowestPrice && item.lowestPrice === item.endingPrice">The price of Argon has remained steady at ${{ formatPrice(item.startingPrice )}} throughout the entire day.</template>
-            <template v-else>The price of Argon started at ${{ formatPrice(item.startingPrice )}} on the morning of {{ dayjs.utc(item.startingDate).format('MMM D') }}. It then dropped to ${{ formatPrice(item.lowestPrice )}} before finishing at ${{ formatPrice(item.endingPrice )}}. </template>
-            SAM uses the basic Law of Supply and Demand to culculate this price:
+            <template v-if="item.startingPrice === item.lowestPrice && item.lowestPrice === item.endingPrice">The price of Argon has remained steady at ${{ formatPrice(usd(item.startingPrice), 3)}} throughout the entire day.</template>
+            <template v-else>The price of Argon started at ${{ formatPrice(usd(item.startingPrice), 3)}} on the morning of {{ dayjs.utc(item.startingDate).format('MMM D') }}. It then dropped to ${{ formatPrice(usd(item.lowestPrice), 3)}} before finishing at ${{ formatPrice(usd(item.endingPrice), 3)}}. </template>
+            SAM converts its modeled price ratio using the frozen ${{ formatPrice(rules.usdTargetForArgon, 3) }} target:
           </p>
-          <p class="monospace italic bg-slate-100/100 px-2 py-1 rounded-md">Price = Demand / Supply</p>
+          <p class="monospace italic bg-slate-100/100 px-2 py-1 rounded-md">USD Price = (Modeled Capital / Circulating ARGN) × USD Target</p>
           <p>Explore the rest of this page to see the details.</p>
         </div>
 
@@ -106,10 +105,10 @@
 
         <div v-if="id === 'taxedTransactions'" class="space-y-2">
           <template v-if="item.circulationRemovedMap.TransactionalTaxes">
-            <p>₳{{ formatShorthandNumber(item.circulationRemovedMap.TransactionalTaxes) }} was burned from circulation through transactional taxes (20&cent; per transaction). Learn more about this in <em>Whitepaper #2</em>.</p>
+            <p>₳{{ formatShorthandNumber(item.circulationRemovedMap.TransactionalTaxes) }} was burned from circulation through transactional taxes (₳0.20 per transaction). Learn more about this in <em>Whitepaper #2</em>.</p>
           </template>
           <template v-else>
-            <p>The system has ₳{{ formatShorthandNumber(item.annualTransactions * 0.2/365) }} transactional taxes burned from circulation each day (20&cent; per transaction). However, none of these are currently being used to stabilize the price. The model's configuration has disabled all stabilization mechanisms (such as taxes) during this "{{ item.phase }}" phase.</p>
+            <p>The system has ₳{{ formatShorthandNumber(item.annualTransactions * 0.2/365) }} transactional taxes burned from circulation each day (₳0.20 per transaction). However, none of these are currently being used to stabilize the price. The model's configuration has disabled all stabilization mechanisms (such as taxes) during this "{{ item.phase }}" phase.</p>
           </template>
         </div>
 
@@ -151,37 +150,37 @@
         </p>
 
         <p v-if="id === 'terraCapitalIncrease'" class="space-y-2">
-          An average of ${{formatShorthandNumber(item.capitalAddedMap.TerraGrowth, 2)}} was flowing into Terra on a daily basis. SAM follows the same process with Argon in order to create a realistic recreation of Terra's $18.7B implosion.          
+          This interval adds ${{formatShorthandNumber(usd(item.capitalAddedMap.TerraGrowth), 2)}} in modeled capital. SAM follows Terra's growth pattern, valued at the frozen Argon target.
         </p>
         
         <p v-if="id === 'terraCapitalDecrease'" class="space-y-2">
-          Over the span of a single month, Terra lost $18.7B in capital. This SAM model closely follows the same flow in order to create a realistic recreation of Terra's $18.7B implosion.
+          SAM follows Terra's collapse pattern. Its modeled capital outflows are converted to dollars using the frozen Argon target; they are not historical USD observations.
         </p>
 
         <p v-if="id === 'supply'" class="space-y-2">
           Argons have
-          <template v-if="item.endingCirculation > previousItem.endingCirculation">increased by ${{ formatShorthandNumber(item.endingCirculation - previousItem.endingCirculation) }} since yesterday. They are now at to ${{ formatShorthandNumber(item.endingCirculation) }}. </template>
-          <template v-else-if="item.endingCirculation < previousItem.endingCirculation">decreased by ${{ formatShorthandNumber(previousItem.endingCirculation - item.endingCirculation) }} since yesterday. They are now at ${{ formatShorthandNumber(item.endingCirculation) }}. </template>
-          <template v-else>remained steady since yesterday with ${{ formatShorthandNumber(item.endingCirculation, { mantissa: 2 }) }} in circulation. </template>
+          <template v-if="item.endingCirculation > previousItem.endingCirculation">increased by ₳{{ formatShorthandNumber(item.endingCirculation - previousItem.endingCirculation) }} since yesterday. They are now at to ₳{{ formatShorthandNumber(item.endingCirculation) }}. </template>
+          <template v-else-if="item.endingCirculation < previousItem.endingCirculation">decreased by ₳{{ formatShorthandNumber(previousItem.endingCirculation - item.endingCirculation) }} since yesterday. They are now at ₳{{ formatShorthandNumber(item.endingCirculation) }}. </template>
+          <template v-else>remained steady since yesterday with ₳{{ formatShorthandNumber(item.endingCirculation, { mantissa: 2 }) }} in circulation. </template>
 
           <template v-if="item.endingCirculation === item.endingCapital">Supply is in balance with demand.</template>
-          <template v-else-if="item.endingCirculation > item.endingCapital">It must be reduced by ${{ formatShorthandNumber(item.endingCirculation - item.endingCapital) }} to reach equilibrium with demand.</template>
+          <template v-else-if="item.endingCirculation > item.endingCapital">It must be reduced by ₳{{ formatShorthandNumber(item.endingCirculation - item.endingCapital) }} to reach equilibrium with demand.</template>
         </p>
 
         <p v-if="id === 'demand'" class="space-y-2">
           Capital in the Argon has
-          <template v-if="item.endingCapital > previousItem.endingCapital">increased by ${{ formatShorthandNumber(item.endingCapital - previousItem.endingCapital) }} to ${{ formatShorthandNumber(item.endingCapital) }} since yesterday.</template>
-          <template v-else-if="item.endingCapital < previousItem.endingCapital">decreased by ${{ formatShorthandNumber(previousItem.endingCapital - item.endingCapital) }} to ${{ formatShorthandNumber(item.endingCapital) }} since yesterday.</template>
-          <template v-else>remained steady since yesterday with ${{ formatShorthandNumber(item.endingCapital, { mantissa: 2 }) }} in the market. </template>
+          <template v-if="item.endingCapital > previousItem.endingCapital">increased by ${{ formatShorthandNumber(usd(item.endingCapital - previousItem.endingCapital)) }} to ${{ formatShorthandNumber(usd(item.endingCapital)) }} since yesterday.</template>
+          <template v-else-if="item.endingCapital < previousItem.endingCapital">decreased by ${{ formatShorthandNumber(usd(previousItem.endingCapital - item.endingCapital)) }} to ${{ formatShorthandNumber(usd(item.endingCapital)) }} since yesterday.</template>
+          <template v-else>remained steady since yesterday with ${{ formatShorthandNumber(usd(item.endingCapital), { mantissa: 2 }) }} in the market. </template>
 
           <template v-if="item.endingCapital === item.endingCirculation">Supply is in balance with demand.</template>
-          <template v-else-if="item.endingCirculation - item.endingCapital > 1">It must be increased by ${{ formatShorthandNumber(item.endingCirculation - item.endingCapital) }} to reach equilibrium with supply.</template>
+          <template v-else-if="item.endingCirculation - item.endingCapital > 1">It must be increased by ${{ formatShorthandNumber(usd(item.endingCirculation - item.endingCapital)) }} to reach equilibrium with supply.</template>
         </p>
 
         <!-- ---------------------------------------------------- -->
 
         <p v-if="id === 'collapseThenRecover'" class="space-y-2">
-         This accurately simulates the Terra collapse. It shows how the Argon would behave if it completely collapsed ($18.7B implosion) before any of Argon's stabilization mechanisms were activated.
+         This scenario applies the Terra-shaped shock before enabling the modeled stabilization mechanisms. Dollar amounts use the frozen Argon target.
         </p>
 
         <p v-if="id === 'collapsedForever'" class="space-y-2">
@@ -189,7 +188,7 @@
         </p>
 
         <p v-if="id === 'collapsingRecovery'" class="space-y-2">
-          This scenario is the most brutal collapse we could devise. It's also completley unrealistic. It begins with a $4.5B market shock, which Argon's mechanisms almost instantly recover from. Instead of letting the market recognize Argon's resilience, the model continues to be hit with an additional 23 market shocks totalling another $14.2B over a 30 day timespan.
+          This scenario keeps the modeled stabilization mechanisms enabled throughout the Terra-shaped sequence of market shocks. Dollar amounts use the frozen Argon target.
         </p>
       </div>
     </div>            
@@ -198,6 +197,7 @@
 
 <script setup lang="ts">
 import * as Vue from 'vue';
+import { toUsd } from '../lib/ArgonTarget';
 import { storeToRefs } from 'pinia';
 import dayjs from 'dayjs';
 import dayjsUtc from 'dayjs/plugin/utc';
@@ -209,6 +209,7 @@ import { useBasicStore } from '../store';
 dayjs.extend(dayjsUtc);
 
 const basicStore = useBasicStore();
+const usd = (value: number) => toUsd(value, basicStore.rules.usdTargetForArgon);
 const { rules } = storeToRefs(basicStore);
 
 const isOpen = Vue.ref(false);
