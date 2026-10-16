@@ -8,7 +8,7 @@
       <div class="ModelSelector min-w-0 relative pl-[10px]" @mouseenter="isModelMenuOpen = true" @mouseleave="isModelMenuOpen = false" @focusin="isModelMenuOpen = true" @focusout="closeModelMenuOnBlur" @keydown.esc.stop.prevent="isModelMenuOpen = false">
         <h1 class="text-2xl font-extralight relative top-[0.5px] text-left py-3 text-slate-600">
           <button type="button" class="ModelSelectorButton flex w-full min-w-0 items-center gap-2 text-left" :aria-expanded="isModelMenuOpen" aria-controls="model-navigation" @click="isModelMenuOpen = true" @keydown.down.prevent="isModelMenuOpen = true">
-            <span class="truncate">Ultimate Death Spiral Model</span>
+            <span class="truncate">Ultimate Death Spiral</span>
             <ChevronDownIcon class="w-4 h-4 shrink-0" aria-hidden="true" />
           </button>
         </h1>

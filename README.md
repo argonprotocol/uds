@@ -1,4 +1,4 @@
-# Ultimate Death Spiral (UDS) Model
+# Ultimate Death Spiral
 
 UDS is an educational simulation of price stabilization in a simplified Argon
 economy. Drag the chart's price line below target to explore recovery through
