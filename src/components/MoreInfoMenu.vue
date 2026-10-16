@@ -18,7 +18,6 @@
           <a @click="openFaqOverlay(closeFn)" class="block pt-2 pb-1 px-3 hover:text-fuchsia-600 hover:bg-[#FAF4FC]">Frequently Asked Questions</a>
           <a @click="openWhitepapersOverlay(closeFn)" class="block pt-2 pb-1 px-3 hover:text-fuchsia-600 border-t border-gray-200 hover:bg-[#FAF4FC]">Read Our Whitepapers</a>
           <a v-if="false" @click="openVideoOverlay(closeFn)" class="block pb-2 pt-1 px-3 hover:text-fuchsia-600 hover:bg-[#FAF4FC]">Watch <span class="italic">Intro to Restabilization</span></a>
-          <a @click="openTourOverlay(closeFn)" class="block py-2 px-3 hover:text-fuchsia-600 border-t border-gray-200 hover:bg-[#FAF4FC]">Take Our Guided Tour</a>
           <a href="https://argon.network/docs/engine-modeling/uds" class="block py-2 px-3 hover:text-fuchsia-600 border-t border-gray-200 hover:bg-[#FAF4FC]">Open Argon Docs</a>
         </div>
       </PopoverPanel>
@@ -33,9 +32,6 @@ import InformationSolid from '@/assets/information-solid.svg';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/vue'
 import * as TooltipUtils from '../lib/TooltipUtils';
 import emitter from '../emitters/basic';
-import { useBasicStore } from '../store';
-
-const basicStore = useBasicStore();
 
 const menuRef = Vue.ref<typeof PopoverPanel | null>(null);
 const menuButtonRef = Vue.ref<typeof PopoverButton | null>(null);
@@ -70,11 +66,6 @@ function openWhitepapersOverlay(closeFn?: () => void) {
 
 function openVideoOverlay(closeFn?: () => void) {
   emitter.emit('openVideoOverlay');
-  closeFn?.();
-}
-
-function openTourOverlay(closeFn?: () => void) {
-  basicStore.setConfig({ tourStep: 1 });
   closeFn?.();
 }
 

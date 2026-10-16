@@ -1,11 +1,32 @@
 # Ultimate Death Spiral (UDS) Model
 
-SAM is an educational simulation of recovery in a simplified Argon economy.
-Drag the chart's price line below target to model a shock and simulate recovery
-from the selected date using the configured circulation, locked BTC, and mechanisms. Results describe the assumptions in
-this model; they are not predictions of mainnet prices or recovery times.
+UDS is an educational simulation of price stabilization in a simplified Argon
+economy. Drag the chart's price line below target to explore recovery through
+Bitcoin unlocking and other enabled mechanisms, or above target to explore
+supply expansion through mining and BTC Liquids. Results reflect the model's
+assumptions; they are not predictions of mainnet prices or recovery times.
 
-## Run locally and test
+## Use the model
+
+Open [UDS](https://uds.argon.network/) on a desktop or laptop. The interactive app
+requires a viewport at least 1,224 pixels wide.
+
+1. Adjust the header's circulation, locked BTC, and hourly BTC unlocking limit.
+   Hover or focus the header stats for explanations.
+2. Drag the price line to choose a starting price and date, then release it to
+   open the guidance card. This prepares the scenario without running the engine.
+3. Select Start to run the scenario. Playback shows price, supply, BTC balances,
+   and elapsed time, with pauses explaining important stages.
+4. On success, select Done to extend the target-price line across the remaining
+   window. `Unachievable` means stabilization was not reached within the modeled
+   horizon, rather than a claim that recovery is impossible at any later time.
+
+Each scenario runs for up to 30 simulated days after the selected starting point.
+The chart scrolls with playback when needed. A new drag or input edit cancels the
+current scenario; a new drag also resets the date window. The Learn More menu
+provides FAQs, whitepapers, and Argon documentation.
+
+## Development
 
 Use Node.js 22 or newer and the Yarn 4 version pinned in `package.json`.
 Dependencies use a standard `node_modules` install.
@@ -17,10 +38,10 @@ yarn test
 yarn build
 ```
 
-Run the focused recovery and accounting tests with:
+Run the focused engine, snapshot, and URL-input tests with:
 
 ```sh
-yarn test tests/engineCorrections.test.ts tests/recoveryRunner.test.ts tests/argonTarget.test.ts
+yarn test tests/engineCorrections.test.ts tests/recoveryRunner.test.ts tests/miningEngine.test.ts tests/mainnetSnapshot.test.ts tests/argonTarget.test.ts tests/urlInputs.test.ts
 ```
 
 `yarn build` builds the application; it does not run type-checking.
@@ -35,7 +56,7 @@ yarn update:bitcoin
 This downloads prices into `src/data/bitcoinPrices.json`. Run the tests after
 changing input data. Tests tied to historical data may need reviewed updates.
 
-## Mainnet snapshot
+## Mainnet defaults and data updates
 
 ```sh
 yarn update:argon
@@ -43,16 +64,16 @@ yarn update:argon
 
 This downloads the entire published JSON file from
 `https://argon.network/data/argonBasics.mainnet.json` and saves it to
-`src/data/argonBasics.json`, matching EGP's snapshot workflow. It validates the
-snapshot timestamp/block, target price, circulation, and locked BTC before
+`src/data/argonBasics.json`. It validates the snapshot timestamp/block, target price, circulation, and locked BTC before
 atomically replacing the file. Failed downloads or validation leave the previous
 snapshot intact. No RPC dependency is required.
 
-Starting Circulation defaults to `microgonsInCirculation.total / 1,000,000` ARGN.
-BTC In Liquid Locks defaults to `vaulting.bitcoinLocked` BTC. Valid URL inputs
-and saved circulation edits override those defaults; locked BTC edits remain
-local and are not saved. The target price and timestamp come from the same
-snapshot. The data is as current as the publisher's `lastUpdatedAt`, not a live
+Starting circulation defaults to `microgonsInCirculation.total / 1,000,000` ARGN,
+rounded to a whole token. A valid URL circulation value takes precedence over
+saved circulation, but the app clamps the result to at least that rounded mainnet
+value. Locked BTC defaults to `vaulting.bitcoinLocked`; a valid URL value overrides
+it. Locked BTC edits remain local and are not saved. The target price and
+timestamp come from the same snapshot. The data is as current as the publisher's `lastUpdatedAt`, not a live
 mainchain read. Run the command explicitly, then reload or rebuild/redeploy.
 
 The target and its timestamp are fixed in each run's rules. Reload the app after
@@ -66,7 +87,7 @@ divided by the target for minting and redemption; exported Bitcoin prices and
 gains are converted back to USD. At a $1.058 target, $80,000 of Bitcoin represents
 about 75,614 ARGN at target.
 
-## Interactive recovery
+## Share scenario inputs
 
 External links can initialize the network quantities:
 
@@ -75,28 +96,30 @@ https://uds.argon.network/?circulation=2200000&bitcoinsInLiquidLocks=125.5
 ```
 
 Values use ARGN and BTC (fractional BTC is supported). Circulation must be
-positive; locked BTC may be zero. Valid parameters override saved settings and
-defaults on page load. Missing, blank, nonnumeric, negative, and nonfinite inputs
-are ignored independently. Inputs remain editable after opening the link.
+positive; locked BTC may be zero. Valid parameters take precedence on page load,
+subject to the circulation minimum described above. Missing, blank, nonnumeric,
+negative, and nonfinite inputs are ignored independently. Inputs remain editable after opening the link.
+
+## Below-target recovery
 
 `src/panels/Main.vue` sends the dragged price/date and current inputs to
 `src/workers/recovery.ts`, which runs `src/lib/RecoveryRunner.ts`.
-The runner initializes a vault with the exact BTC quantity from the UI (default
-1,600,000 BTC), valued at `btcPriceOverride`. It starts with an empty reserve and
-advances the shared `Marker`/`Vault` engine in hourly steps until the price reaches
+The runner initializes a vault with the exact BTC quantity from the UI, valued
+at `btcPriceOverride`. The default quantity comes from the bundled mainnet
+snapshot. It starts with an empty reserve and advances the shared `Marker`/`Vault` engine in hourly steps until the price reaches
 target or the selected timeline ends. It does not calculate starting BTC from
 circulation or vault capacity, or replay a fixed Terra outflow pattern.
 
-The old scenario runner, scenario cache, bundled-result generator, and CPI
-comparison are removed. Recovery runs do not read or write scenario results in
-IndexedDB. Configuration remains in session storage; the BTC quantity resets to
-its UI default on reload.
+Recovery results remain in memory. Rules and welcome state are stored in session
+storage; locked BTC resets to its URL value or snapshot default on reload.
+The Reset control clears saved rules and welcome state, then reloads the page.
+URL parameters are reapplied on that reload.
 
 ## Protocol comparison baseline
 
 The reference is Argon runtime **158**, release **v1.4.12**, commit
 [`f79ac75ee9f0da8a8177d772379897e194b70ff2`](https://github.com/argonprotocol/mainchain/tree/f79ac75ee9f0da8a8177d772379897e194b70ff2).
-This is a fixed comparison baseline, not a claim that SAM implements the entire
+This is a fixed comparison baseline, not a claim that UDS implements the entire
 runtime or that this release is still the latest deployed version.
 
 The piecewise redemption curve in `src/engine/Vault.ts` uses the same coefficients
@@ -126,33 +149,20 @@ The reserve estimates the entire return to target with fixed post-crash demand,
 using a conservative numerical calculation across the changing redemption curve.
 Initial recovery can spend only BTC above that reserve. When this spendable BTC
 is exhausted below target, the engine waits `fearSelloffDelayInDays` (default 3
-days, editable in Recovery Settings) before a fear selloff reduces modeled demand to produce a
-$0.001 price; the next hour releases the reserve for recovery. Prior demand-growth
-history is cleared at the selloff. Latency and hourly BTC limits still apply.
+days, editable in Recovery Settings) before a 24-hour fear selloff reduces modeled
+demand until the price reaches $0.001. Supply and BTC balances are held during the
+selloff; the reserve is released at the bottom and recovery resumes the next
+hour. Prior demand-growth history is cleared at the selloff. Latency and hourly BTC limits still apply.
 During the wait BTC remains protected and other enabled mechanisms can still
-recover the price, avoiding the selloff. Zero delay triggers the selloff immediately;
-fractional days are rounded up to whole simulation hours.
+recover the price, avoiding the selloff. Zero delay starts the 24-hour selloff
+without an additional wait; fractional days are rounded up to whole simulation hours.
 Runs already at or below $0.001 use their BTC immediately. If starting BTC cannot
 fund the reserve, Bitcoin-driven recovery is held back and the run is not promised
 to recover; other enabled mechanisms may still act. No selloff is triggered with
 Bitcoin recovery disabled. This reserve and selloff are scenario assumptions,
 not mainchain rules, and a short chart window can end before recovery completes.
 
-## Units and historical inputs
-
-Releasing a price drag opens a guidance card without running an engine. Start
-begins playback, with an elapsed-time and supply-change card following the marker.
-On success the line pauses at stabilization until Done is clicked; only then does
-the final target-price line animate across the remaining window. Unsuccessful
-runs show a dismissible Unachievable card. A new drag or an input edit cancels
-the guidance flow and its current run.
-
-Both interactive engines run for up to one chart width (30 days) after the
-dragged-price point. Playback scrolls the date window once its marker passes the
-original right edge, keeping the marker at the right edge until the dragged-price
-point reaches the left edge. If stabilization has not occurred by then, playback
-ends with `Unachievable`, meaning not achieved within this simulation horizon.
-Starting a new drag resets the date window.
+## Above-target stabilization
 
 Above-target scenarios use `MiningEngine`: one frame every 24 hours after the
 selected starting time. Each frame issues `circulation * (1 - target / price)`
@@ -167,7 +177,10 @@ the mining half at the current price. Bitcoin/Fission mint payout queues and the
 10% per-request frame caps are omitted. Playback interpolates daily frames
 for animation; the engine itself issues at frame boundaries.
 
-Existing numeric representations, rule names, and default values are preserved.
+## Units and configuration
+
+The chart and playback display USD prices. Internal recovery accounting uses
+market-price/target-price ratios and target-value units as described below.
 
 | Quantity or rule | Unit / interpretation |
 | --- | --- |
@@ -189,8 +202,11 @@ Existing numeric representations, rule names, and default values are preserved.
 | `speculativeGreedLow/High` | Percentage return thresholds over modeled marker intervals |
 | `certaintyMaxDailyIncrease`, `speculativeMaxDailyIncrease` | Fractions of prior capital per day: **0.5 means 50%, not 0.5%** |
 
-The 50% daily growth caps are strong behavioral assumptions, retained for
-compatibility. They are not protocol parameters. `startDateOfTerraCollapse`,
+The default daily demand-growth caps are 100% for certainty demand
+(`certaintyMaxDailyIncrease = 1`) and 50% for speculative demand
+(`speculativeMaxDailyIncrease = 0.5`). Certainty demand is enabled by default;
+speculative demand and taxation are disabled. These are strong behavioral
+assumptions, not protocol parameters. `startDateOfTerraCollapse`,
 `dollarInflation`, and `speculativeGreedWithinHours` remain legacy configuration
 fields; interactive recovery uses the selected chart date and speculative
 latency bounds. `btcVaultCapacityPct` applies to shared vault loading methods,
@@ -201,7 +217,7 @@ not the explicit BTC initialization in interactive recovery.
 | `src/data/bitcoinPrices.json` | Historical BTC prices for shared vault accounting; interactive recovery uses `btcPriceOverride` |
 | `src/data/argonBasics.json` | Full published mainnet snapshot; target, circulation, and locked BTC defaults |
 
-## Accounting corrections
+## Accounting details
 
 - Partial redemptions allocate pending ratchet value using the original BTC
   quantity; complete redemption clears the pending value.
@@ -209,6 +225,3 @@ not the explicit BTC initialization in interactive recovery.
   profit totals and price-dependent unlock values. Profit dates use UTC, matching
   the simulation timeline regardless of the machine's local timezone.
 - Speculative demand uses its own minimum latency rather than certainty latency.
-
-Public copy, full configuration/export, mobile presentation, and more faithful
-protocol economics remain separate follow-up work.

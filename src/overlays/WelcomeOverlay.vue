@@ -61,7 +61,6 @@
 <script setup lang="ts">
 import * as Vue from 'vue'
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue'
-import { ChevronDoubleRightIcon } from '@heroicons/vue/24/outline'
 import PlayOutlined from '../assets/play-outlined.svg';
 import PlaySolid from '../assets/play-solid.svg';
 import { useBasicStore } from '../store';
@@ -77,11 +76,6 @@ const nextButtonRef = Vue.ref<HTMLElement | null>(null);
 function close() {
   isOpen.value = false;
   basicStore.setConfig({ completedWelcome: true });
-}
-
-function startTour() {
-  basicStore.setConfig({ tourStep: 1 });
-  isOpen.value = false;
 }
 
 function expandVideo() {
