@@ -8,7 +8,8 @@
   <div v-else class="flex flex-row min-h-screen w-screen">
     <div class="flex flex-col h-screen grow min-w-[60rem] min-h-[55rem]">
       <Header v-model:locked-bitcoins="lockedBitcoins" :current-price="currentPrice" :recovery-amounts="recoveryAmounts" />
-      <Main v-if="isReady" class="grow" :locked-bitcoins="lockedBitcoins" @priceChanged="currentPrice = $event" @recoveryAmountsChanged="recoveryAmounts = $event" />
+      <p v-if="isReady && !btcRangeFeasible" class="p-6 text-red-700" role="alert">The required BTC reserve exceeds 17,500,000 BTC. Reduce circulation to run this scenario.</p>
+      <Main v-if="isReady && btcRangeFeasible" class="grow" :locked-bitcoins="lockedBitcoins" @priceChanged="currentPrice = $event" @recoveryAmountsChanged="recoveryAmounts = $event" />
       <Loading v-else-if="isLoading" class="grow" />
       <Running v-else-if="isRunning" class="grow" />
     </div>
@@ -46,6 +47,7 @@ import { useBasicStore } from './store';
 import emitter from './emitters/basic';
 import { readUrlInputs } from './lib/UrlInputs';
 import { mainnetDefaults } from './lib/RulesConfig';
+import { minimumLockedBitcoins, MAX_LOCKED_BITCOINS } from './lib/RecoveryRunner';
 
 const basicStore = useBasicStore();
 const { completedWelcome, tourStep, isLoading, isRunning, isReady } = storeToRefs(basicStore);
@@ -56,6 +58,14 @@ const networkCirculation = Math.round(mainnetDefaults.circulation);
 const initialCirculation = Number(urlInputs.circulation ?? savedRules.circulation ?? networkCirculation);
 basicStore.rules.circulation = Number.isFinite(initialCirculation)
   ? Math.max(networkCirculation, initialCirculation) : networkCirculation;
+const minimumBtc = Vue.computed(() => minimumLockedBitcoins(basicStore.rules));
+const btcRangeFeasible = Vue.computed(() => minimumBtc.value <= MAX_LOCKED_BITCOINS);
+Vue.watchEffect(() => {
+  const minimum = minimumBtc.value;
+  const value = Number(lockedBitcoins.value);
+  lockedBitcoins.value = Math.min(MAX_LOCKED_BITCOINS,
+    Math.max(minimum, Number.isFinite(value) ? value : minimum));
+});
 const currentPrice = Vue.ref(basicStore.rules.usdTargetForArgon);
 const recoveryAmounts = Vue.shallowRef<{ circulation: number; lockedBitcoins: number } | null>(null);
 

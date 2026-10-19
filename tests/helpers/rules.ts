@@ -18,6 +18,7 @@ const rules: IRules = {
   btcRatchetWhenPriceChangePct: 10,
   btcPriceOverride: 34_082.21,
   btcMaxTxnsPerHour: 1000,
+  btcReserveTaperPct: 0,
   unvaultLatencyInHours: 240,
   fearSelloffDelayInDays: 3,
   
@@ -31,10 +32,13 @@ const rules: IRules = {
   enableSpeculativeGreed: true,
   speculativeGreedLow: 10,
   speculativeGreedHigh: 20,
-  speculativeGreedWithinHours: 24,
   speculativeLatencyLow: 24,
   speculativeLatencyHigh: 48,
-  speculativeMaxDailyIncrease: 0.5,
+  speculativeStartingDailyInflow: 0.0001,
+  speculativeMaxDailyGrowth: 0.1,
+  speculativeDailyInflowCeiling: 0.001,
+  speculativeDailyTaper: 0.5,
+  speculativeWeakReturnStopHours: 24,
 };
 
 export default rules;

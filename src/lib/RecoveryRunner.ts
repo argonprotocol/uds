@@ -12,7 +12,7 @@ const FEAR_SELLOFF_HOURS = 24;
 
 // Upper-bound the BTC needed as the price rises, rather than valuing every
 // redemption at the crash price. Include the curve's boundaries and minimum.
-function crashRecoveryReserve(circulation: number, target: number, btcValue: number): number {
+export function crashRecoveryReserve(circulation: number, target: number, btcValue: number): number {
   const initialRatio = FEAR_PRICE_USD / target;
   if (initialRatio >= 1) return 0;
   const ratios = Array.from({ length: 4097 }, (_, index) =>
@@ -31,6 +31,14 @@ function crashRecoveryReserve(circulation: number, target: number, btcValue: num
   return bitcoins;
 }
 
+export const MAX_LOCKED_BITCOINS = 17_500_000;
+
+// Round upward so the editor never selects less than the engine protects.
+export function minimumLockedBitcoins(rules: Pick<IRules, 'circulation' | 'usdTargetForArgon' | 'btcPriceOverride'>): number {
+  return Math.ceil(crashRecoveryReserve(rules.circulation, rules.usdTargetForArgon,
+    rules.btcPriceOverride / rules.usdTargetForArgon));
+}
+
 export interface RecoveryRequest {
   startingTime: number;
   endingTime: number;
@@ -39,6 +47,9 @@ export interface RecoveryRequest {
   rules: IRules;
 }
 export interface RecoveryFrame {
+  speculativeStarted?: boolean;
+  speculativeCapitalAdded?: number;
+  sixMonthSelloff?: boolean;
   reserveStall?: boolean;
   selloffBottom?: boolean;
   time: number;
@@ -95,6 +106,7 @@ export function runRecovery(request: RecoveryRequest, onProgress?: (frames: Reco
     points.push({ x: frame.time, y: frame.price });
     if (pendingFrames.length >= 32) flush();
   }
+  const sixMonthHours = Math.ceil((dayjs.utc(startingTime).add(6, 'month').valueOf() - startingTime) / HOUR);
   const maxHours = Math.floor((endingTime - startingTime) / HOUR);
   if (startingPrice === rules.usdTargetForArgon) {
     flush();
@@ -131,9 +143,12 @@ export function runRecovery(request: RecoveryRequest, onProgress?: (frames: Reco
   let capital = circulation * startingPrice / rules.usdTargetForArgon;
   const history: Marker[] = [];
   const historyLimit = Math.max(24, Math.ceil(rules.certaintyLatencyHigh), Math.ceil(rules.speculativeLatencyHigh));
+  let speculativeWasActive = false;
   let lastPrice = startingPrice;
   let argonsBurned = 0;
   const protectedBitcoins = crashRecoveryReserve(circulation, rules.usdTargetForArgon, positionPrice);
+  const taperBand = Math.max(0, lockedBitcoins - protectedBitcoins) *
+    Math.max(0, Math.min(100, rules.btcReserveTaperPct ?? 60)) / 100;
   let reserveReleased = startingPrice <= FEAR_PRICE_USD;
   const canProtectReserve = lockedBitcoins >= protectedBitcoins;
   let flatlineStartingHour: number | undefined;
@@ -143,13 +158,17 @@ export function runRecovery(request: RecoveryRequest, onProgress?: (frames: Reco
   for (let hour = 1; hour <= maxHours; hour++) {
     const spendableBitcoins = reserveReleased ? vault.bitcoinCount
       : Math.max(0, vault.bitcoinCount - protectedBitcoins);
-    if (!reserveReleased && canProtectReserve && rules.enableBitcoinVaulting &&
+    const priceIsRecovering = history.length > 0 &&
+      lastPrice > history[history.length - 1].startingPrice * rules.usdTargetForArgon + 1e-10;
+    if (!reserveReleased && canProtectReserve && rules.enableBitcoinVaulting && !priceIsRecovering &&
       spendableBitcoins <= Math.max(1e-10, lockedBitcoins * 1e-9)) {
       flatlineStartingHour ??= hour;
       reserveStallHour ??= hour;
     } else {
       flatlineStartingHour = undefined;
     }
+    const sixMonthSelloff = !selloff && !reserveReleased && hour === sixMonthHours;
+    if (sixMonthSelloff) selloff = { startingHour: hour, startingPrice: lastPrice };
     if (!selloff && flatlineStartingHour !== undefined && hour - flatlineStartingHour >= fearDelayHours) {
       selloff = { startingHour: hour, startingPrice: lastPrice };
     }
@@ -165,8 +184,9 @@ export function runRecovery(request: RecoveryRequest, onProgress?: (frames: Reco
         reserveReleased = true;
         selloff = undefined;
       }
+      speculativeWasActive = false;
       history.length = 0;
-      record({ time: startingTime + hour * HOUR, elapsedHours: hour, price: lastPrice,
+      record({ time: startingTime + hour * HOUR, elapsedHours: hour, price: lastPrice, sixMonthSelloff,
         argonsBurned, bitcoinsUnlocked: Math.max(0, lockedBitcoins - vault.bitcoinCount),
         bitcoinsRemaining: vault.bitcoinCount, circulation });
       continue;
@@ -176,9 +196,15 @@ export function runRecovery(request: RecoveryRequest, onProgress?: (frames: Reco
     marker.setAnnualTransactions(rules.maxTransactionsAnnually * circulation / rules.circulation);
     marker.setAnnualMicropayments(rules.maxMicropaymentsAnnually);
     marker.setReserve(reserve);
+    // Keep the crash reserve intact. Clear the final BTC instead of leaving an infinite tail.
+    const taperFactor = !reserveReleased && taperBand > 0 && spendableBitcoins > 1
+      ? Math.min(1, spendableBitcoins / taperBand) : 1;
     marker.runRecovery({ ...rules,
-      btcMaxTxnsPerHour: Math.min(rules.btcMaxTxnsPerHour, spendableBitcoins),
+      btcMaxTxnsPerHour: Math.min(rules.btcMaxTxnsPerHour, spendableBitcoins) * taperFactor,
       enableBitcoinVaulting: rules.enableBitcoinVaulting && spendableBitcoins > 0 }, history, vault);
+    const speculativeCapitalAdded = marker.capitalAddedMap.SpeculativeGreed || 0;
+    const speculativeStarted = speculativeCapitalAdded > 0 && !speculativeWasActive;
+    speculativeWasActive = speculativeCapitalAdded > 0;
     marker.manageSeigniorageProfits(rules, reserve);
     argonsBurned += marker.circulationRemoved;
     circulation = marker.currentCirculation;
@@ -189,8 +215,9 @@ export function runRecovery(request: RecoveryRequest, onProgress?: (frames: Reco
     if (history.length > historyLimit) history.shift();
     const recovered = marker.currentPrice >= 1 - 1e-9;
     // Preserve hourly detail near the shock and daily samples for long runs.
-    if (hour <= 720 || hour % 24 === 0 || recovered || hour === maxHours || hour === reserveStallHour) {
+    if (hour <= 720 || hour % 24 === 0 || recovered || hour === maxHours || hour === reserveStallHour || speculativeStarted) {
       record({ time: startingTime + hour * HOUR, elapsedHours: hour,
+        speculativeStarted, speculativeCapitalAdded,
         price: recovered ? rules.usdTargetForArgon : lastPrice,
         argonsBurned, bitcoinsUnlocked: Math.max(0, lockedBitcoins - vault.bitcoinCount),
         bitcoinsRemaining: vault.bitcoinCount, circulation });
@@ -201,7 +228,7 @@ export function runRecovery(request: RecoveryRequest, onProgress?: (frames: Reco
     }
   }
   if (frames[frames.length - 1].time < endingTime) {
-    record({ ...frames[frames.length - 1], time: endingTime, elapsedHours: (endingTime - startingTime) / HOUR, price: lastPrice });
+    record({ ...frames[frames.length - 1], time: endingTime, elapsedHours: (endingTime - startingTime) / HOUR, price: lastPrice, speculativeStarted: false, speculativeCapitalAdded: 0, sixMonthSelloff: false });
   }
   flush();
   return { points, frames, recovered: false, elapsedHours: maxHours };
@@ -222,7 +249,7 @@ export function recoveryFrameAt(frames: RecoveryFrame[], hours: number): Recover
   const a = frames[low], b = frames[high];
   if (hours === a.elapsedHours) return { ...a };
   const t = (hours - a.elapsedHours) / (b.elapsedHours - a.elapsedHours);
-  return Object.fromEntries(Object.keys(a).filter(key => typeof a[key as keyof RecoveryFrame] === 'number').map(key => {
+  return Object.fromEntries(Object.keys(a).filter(key => key !== 'speculativeCapitalAdded' && typeof a[key as keyof RecoveryFrame] === 'number').map(key => {
     const field = key as keyof RecoveryFrame;
     return [key, (a[field] as number) + ((b[field] as number) - (a[field] as number)) * t];
   })) as unknown as RecoveryFrame;

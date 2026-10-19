@@ -132,12 +132,18 @@
         <!-- ---------------------------------------------------- -->
 
         <p v-if="id === 'speculativeGreed'" class="space-y-2">
-          This capital increase is driven by profit speculation based on price momentum from previous days. It's based on the principle that people move into assets that are 
-          constantly increasing in value. Yesterday's price rose {{item.pctIncreaseFromAllSources}}%, which is 
-          
-          <template v-if="item.pctIncreaseFromAllSources < rules.speculativeGreedLow">less than the configured minimum of {{rules.speculativeGreedLow}}% and therefore why no capital was added. </template>
-          <template v-else>greater than the configured minimum of {{rules.speculativeGreedLow}}% and therefore why capital was added.</template>
-          You can configure this property in your model's configuration settings.
+          Speculative demand responds to price gains from all sources. This interval's gain of
+          {{ item.pctIncreaseFromAllSources.toFixed(4) }}% over {{ item.durationInHours }} hours
+          corresponds to {{ (item.pctIncreaseFromAllSources * 365 * 24 / item.durationInHours).toFixed(2) }}% APR
+          using simple annualization, without compounding.
+          The model compares recent intervals' APR with the configured minimum of {{ rules.speculativeGreedLow }}% APR
+          and maximum-growth threshold of {{ rules.speculativeGreedHigh }}% APR.
+          Buying starts at {{ rules.speculativeStartingDailyInflow * 100 }}% of prior-day capital per day,
+          then grows by up to {{ rules.speculativeMaxDailyGrowth * 100 }}% per day while returns qualify.
+          Weak returns taper buying by {{ rules.speculativeDailyTaper * 100 }}% per day,
+          stopping after {{ rules.speculativeWeakReturnStopHours }} consecutive weak hours.
+          Capital inflows also depend on the recent-history requirements and available excess supply.
+          You can configure these properties in your model's configuration settings.
         </p>
 
         <p v-if="id === 'certaintyGreed'" class="space-y-2">

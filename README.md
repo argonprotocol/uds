@@ -1,4 +1,4 @@
-# Ultimate Death Spiral
+# Ultimate Death Spiraling
 
 UDS is an educational simulation of price stabilization in a simplified Argon
 economy. Drag the chart's price line below target to explore recovery through
@@ -196,18 +196,28 @@ market-price/target-price ratios and target-value units as described below.
 | `btcVaultCapacityPct`, `btcRatchetingPct`, `btcRatchetWhenPriceChangePct` | Percentage points: 100 means 100% |
 | `maxTransactionsAnnually` | Transactions per year |
 | `maxMicropaymentsAnnually` | Annual micropayment value at target; treated as wage-protected value during a depeg |
+| `btcReserveTaperPct` | Percent of initially spendable BTC over which the hourly unlock cap tapers proportionally; default 60. Protected reserve remains untouched; taper ends after the death-spiral reserve release. |
 | `btcMaxTxnsPerHour` | Despite the name, maximum BTC volume unlocked per hour; not transactions/hour |
 | `unvaultLatencyInHours`, certainty/speculative latency bounds | Hours |
 | `certaintyGreedLow/High` | Annualized percentage return thresholds attributed to tax burns |
-| `speculativeGreedLow/High` | Percentage return thresholds over modeled marker intervals |
-| `certaintyMaxDailyIncrease`, `speculativeMaxDailyIncrease` | Fractions of prior capital per day: **0.5 means 50%, not 0.5%** |
+| `speculativeGreedLow/High` | APR percentage thresholds: interval return (%) × 365 × 24 / interval hours (simple annualization) |
+| `certaintyMaxDailyIncrease` | Fraction of prior capital per day: **0.5 means 50%** |
+| `speculativeStartingDailyInflow` | Starting daily inflow as a fraction of prior-day capital; 0.0001 = 0.01% |
+| `speculativeMaxDailyGrowth` | Maximum daily growth of the existing buying rate; 0.1 = 10% |
+| `speculativeDailyInflowCeiling` | Daily buying ceiling as a fraction of capital frozen at activation; 0.001 = 0.1% |
+| `speculativeDailyTaper` | Fraction of buying rate lost per weak-return day; 0.5 = 50% |
+| `speculativeWeakReturnStopHours` | Consecutive hours below minimum APR before buying stops; default 24 |
 
-The default daily demand-growth caps are 100% for certainty demand
-(`certaintyMaxDailyIncrease = 1`) and 50% for speculative demand
-(`speculativeMaxDailyIncrease = 0.5`). Certainty demand is enabled by default;
-speculative demand and taxation are disabled. These are strong behavioral
+Certainty demand retains its 100% daily capital cap. Speculative buying starts at
+0.01% of prior-day capital per day and grows by up to 10% per day, with hourly
+multipliers adjusted for interval duration. Its ceiling is 0.1% of activation-day
+capital per day, frozen for each activation. Weak returns halve the buying rate
+per day and stop it after 24 consecutive weak hours; restarting requires the
+configured qualifying history again. The reserve flatline countdown runs only
+while spendable BTC is exhausted and price is no longer recovering.
+These are strong behavioral
 assumptions, not protocol parameters. `startDateOfTerraCollapse`,
-`dollarInflation`, and `speculativeGreedWithinHours` remain legacy configuration
+and `dollarInflation` remain legacy configuration
 fields; interactive recovery uses the selected chart date and speculative
 latency bounds. `btcVaultCapacityPct` applies to shared vault loading methods,
 not the explicit BTC initialization in interactive recovery.

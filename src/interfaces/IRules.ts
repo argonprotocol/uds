@@ -16,6 +16,7 @@ export default interface IRules {
   btcRatchetWhenPriceChangePct: number;
   btcPriceOverride: number;
   btcMaxTxnsPerHour: number;
+  btcReserveTaperPct: number;
   unvaultLatencyInHours: number;
   fearSelloffDelayInDays: number;
 
@@ -29,8 +30,11 @@ export default interface IRules {
   enableSpeculativeGreed: boolean;
   speculativeGreedLow: number;
   speculativeGreedHigh: number;
-  speculativeGreedWithinHours: number;
   speculativeLatencyLow: number;
   speculativeLatencyHigh: number;
-  speculativeMaxDailyIncrease: number;
+  speculativeStartingDailyInflow: number;
+  speculativeMaxDailyGrowth: number;
+  speculativeDailyInflowCeiling: number;
+  speculativeDailyTaper: number;
+  speculativeWeakReturnStopHours: number;
 }

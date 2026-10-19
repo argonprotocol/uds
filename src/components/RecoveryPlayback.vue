@@ -50,6 +50,7 @@ const emit = defineEmits<{
   explanationPause: [];
   reservePause: [];
   bottomPause: [];
+  speculativePause: [];
 }>();
 const current = ref({ ...props.frames[0] });
 const startingPrice = computed(() => props.frames[0].price);
@@ -87,6 +88,7 @@ let reserveExplanationShown = false;
 let bottomExplanationShown = false;
 const reserveStallFrame = computed(() => props.frames.find(frame => frame.reserveStall));
 const selloffBottomFrame = computed(() => props.frames.find(frame => frame.selloffBottom));
+const shownSpeculativeHours = new Set<number>();
 let awaitingContinue = false;
 watch(() => props.paused, (paused, wasPaused) => {
   if (paused || !wasPaused || !awaitingContinue) return;
@@ -111,7 +113,7 @@ function number(value: number, digits: number) {
 function visiblePoints(frame: RecoveryFrame) {
   const samples = props.frames.filter(sample => sample.time < frame.time);
   const stride = Math.max(1, Math.ceil(samples.length / 160));
-  return [...samples.filter((sample, index) => index % stride === 0 || sample.reserveStall || sample.selloffBottom), frame];
+  return [...samples.filter((sample, index) => index % stride === 0 || sample.reserveStall || sample.selloffBottom || sample.sixMonthSelloff || sample.speculativeStarted), frame];
 }
 
 watch(() => props.result, result => {
@@ -142,35 +144,41 @@ function tick(now: number) {
   }
   const pauseHours = props.explanationPauseHours?.()
     ?? (props.result ? available : undefined);
-  const reserveHours = !reserveExplanationShown && reserveStallFrame.value
-    ? reserveStallFrame.value.elapsedHours + Math.ceil((props.reserveWaitDays ?? 3) * 24)
-    : undefined;
-  if (reserveHours !== undefined && playhead >= reserveHours &&
-    (explanationShown || pauseHours === undefined || reserveHours <= pauseHours)) {
-    playhead = reserveHours;
-    finished.value = false;
-    reserveExplanationShown = awaitingContinue = true;
-    // The reserve explanation takes precedence if the initial pause has not happened yet.
-    explanationShown = true;
-    paint();
-    emit('reservePause');
-    return;
-  }
-  if (!explanationShown && pauseHours !== undefined && playhead >= pauseHours) {
-    playhead = pauseHours;
-    finished.value = false;
-    explanationShown = awaitingContinue = true;
-    paint();
-    emit('explanationPause');
-    return;
-  }
+  const flatlineHours = reserveStallFrame.value
+    ? reserveStallFrame.value.elapsedHours + Math.ceil((props.reserveWaitDays ?? 3) * 24) : Infinity;
+  const deadlineHours = props.frames.find(frame => frame.sixMonthSelloff)?.elapsedHours ?? Infinity;
+  const nextReserveHours = Math.min(flatlineHours, deadlineHours);
+  const reserveHours = !reserveExplanationShown && Number.isFinite(nextReserveHours) ? nextReserveHours : undefined;
   const bottomHours = !bottomExplanationShown ? selloffBottomFrame.value?.elapsedHours : undefined;
-  if (bottomHours !== undefined && playhead >= bottomHours) {
-    playhead = bottomHours;
+  const speculativeHours = props.frames.find(frame => frame.speculativeStarted
+    && !shownSpeculativeHours.has(frame.elapsedHours))?.elapsedHours;
+  // Stop at the earliest pending event, even when one animation tick crosses several.
+  const pauses = [
+    { hours: reserveHours, kind: 'reserve' },
+    { hours: !explanationShown ? pauseHours : undefined, kind: 'explanation' },
+    { hours: bottomHours, kind: 'bottom' },
+    { hours: speculativeHours, kind: 'speculative' },
+  ].filter(pause => pause.hours !== undefined && playhead >= pause.hours)
+    .sort((a, b) => a.hours! - b.hours!);
+  const pause = pauses[0];
+  if (pause) {
+    playhead = pause.hours!;
     finished.value = false;
-    bottomExplanationShown = awaitingContinue = true;
+    awaitingContinue = true;
     paint();
-    emit('bottomPause');
+    if (pause.kind === 'reserve') {
+      reserveExplanationShown = explanationShown = true;
+      emit('reservePause');
+    } else if (pause.kind === 'explanation') {
+      explanationShown = true;
+      emit('explanationPause');
+    } else if (pause.kind === 'bottom') {
+      bottomExplanationShown = true;
+      emit('bottomPause');
+    } else {
+      shownSpeculativeHours.add(playhead);
+      emit('speculativePause');
+    }
     return;
   }
   if (now - lastPaint >= 50 || finished.value) {

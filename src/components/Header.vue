@@ -8,7 +8,7 @@
       <div class="ModelSelector min-w-0 relative pl-[10px]" @mouseenter="isModelMenuOpen = true" @mouseleave="isModelMenuOpen = false" @focusin="isModelMenuOpen = true" @focusout="closeModelMenuOnBlur" @keydown.esc.stop.prevent="isModelMenuOpen = false">
         <h1 class="text-2xl font-extralight relative top-[0.5px] text-left py-3 text-slate-600">
           <button type="button" class="ModelSelectorButton flex w-full min-w-0 items-center gap-2 text-left" :aria-expanded="isModelMenuOpen" aria-controls="model-navigation" @click="isModelMenuOpen = true" @keydown.down.prevent="isModelMenuOpen = true">
-            <span class="truncate">Ultimate Death Spiral</span>
+            <span class="truncate">Ultimate Death Spiraling</span>
             <ChevronDownIcon class="w-4 h-4 shrink-0" aria-hidden="true" />
           </button>
         </h1>
@@ -23,7 +23,7 @@
         <EditorButton @mouseenter="showStatTooltip($event, 'This is the amount of Argons currently in circulation. Click to adjust.')" @focusin="showStatTooltip($event, 'Argons currently in circulation. Click to adjust.')" @mouseleave="dismissStatTooltip" @focusout="dismissStatTooltip" @click="dismissStatTooltip" @keydown.esc="dismissStatTooltip" id="circulation" type="number" v-model="rules.circulation" :sliderMin="Math.round(mainnetDefaults.circulation)" :sliderMax="5_000_000_000_000">
           <div class="HeaderStat"><strong>{{ compactQuantity(recoveryAmounts?.circulation ?? rules.circulation, 2) }} ARGN</strong><span>Current Circulation</span></div>
         </EditorButton>
-        <EditorButton @mouseenter="showStatTooltip($event, 'This is the amount of BTC held in liquid-locking vaults. Click to adjust.')" @focusin="showStatTooltip($event, 'BTC held in liquid-locking vaults. Click to adjust.')" @mouseleave="dismissStatTooltip" @focusout="dismissStatTooltip" @click="dismissStatTooltip" @keydown.esc="dismissStatTooltip" id="bitcoinsInLiquidLocks" type="number" :model-value="lockedBitcoins" @update:modelValue="emit('update:lockedBitcoins', Number($event))" :sliderMin="mainnetDefaults.bitcoinsInLiquidLocks" :sliderMax="21_000_000">
+        <EditorButton @mouseenter="showStatTooltip($event, 'This is the amount of BTC held in liquid-locking vaults. Click to adjust.')" @focusin="showStatTooltip($event, 'BTC held in liquid-locking vaults. Click to adjust.')" @mouseleave="dismissStatTooltip" @focusout="dismissStatTooltip" @click="dismissStatTooltip" @keydown.esc="dismissStatTooltip" id="bitcoinsInLiquidLocks" type="number" :model-value="lockedBitcoins" @update:modelValue="emit('update:lockedBitcoins', Number($event))" :sliderMin="minimumBtc" :sliderMax="MAX_LOCKED_BITCOINS" :rangeDescription="`Minimum death-spiral reserve: ${minimumBtc.toLocaleString('en-US')} BTC. Maximum: 17,500,000 BTC.`">
           <div class="HeaderStat"><strong>{{ compactQuantity(recoveryAmounts?.lockedBitcoins ?? lockedBitcoins, 2) }} BTC</strong><span>Locked In Vaults</span></div>
         </EditorButton>
         <EditorButton @mouseenter="showStatTooltip($event, 'This is the maximum BTC that the model is allowed to unlock each hour. Click to adjust.')" @focusin="showStatTooltip($event, 'Maximum BTC that can unlock each hour. Click to adjust.')" @mouseleave="dismissStatTooltip" @focusout="dismissStatTooltip" @click="dismissStatTooltip" @keydown.esc="dismissStatTooltip" id="btcMaxTxnsPerHour" type="number" v-model="rules.btcMaxTxnsPerHour">
@@ -89,6 +89,7 @@ import { showTooltip, hideTooltip } from '../lib/TooltipUtils';
 import emitter from '../emitters/basic';
 import EditorButton from './EditorButton.vue';
 import { mainnetDefaults } from '../lib/RulesConfig';
+import { minimumLockedBitcoins, MAX_LOCKED_BITCOINS } from '../lib/RecoveryRunner';
 
 const props = defineProps<{
   lockedBitcoins: number;
@@ -106,6 +107,7 @@ function closeModelMenuOnBlur(event: FocusEvent) {
 
 const basicStore = useBasicStore();
 const { isReady, isRunning, rules } = storeToRefs(basicStore);
+const minimumBtc = computed(() => minimumLockedBitcoins(rules.value));
 const difference = computed(() => props.currentPrice - rules.value.usdTargetForArgon);
 const atTarget = computed(() => Math.abs(difference.value) < 0.001);
 const priceDifference = computed(() => atTarget.value ? 'AT TARGET' : `${difference.value > 0 ? '+' : '−'}$${Math.abs(difference.value).toFixed(3)}`);

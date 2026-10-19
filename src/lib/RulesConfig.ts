@@ -18,6 +18,7 @@ export interface IRules {
   btcRatchetWhenPriceChangePct: number;
   btcPriceOverride: number;
   btcMaxTxnsPerHour: number;
+  btcReserveTaperPct: number;
   unvaultLatencyInHours: number;
   fearSelloffDelayInDays: number;
   enableCertaintyGreed: boolean;
@@ -29,10 +30,13 @@ export interface IRules {
   enableSpeculativeGreed: boolean;
   speculativeGreedLow: number;
   speculativeGreedHigh: number;
-  speculativeGreedWithinHours: number;
   speculativeLatencyLow: number;
   speculativeLatencyHigh: number;
-  speculativeMaxDailyIncrease: number;
+  speculativeStartingDailyInflow: number;
+  speculativeMaxDailyGrowth: number;
+  speculativeDailyInflowCeiling: number;
+  speculativeDailyTaper: number;
+  speculativeWeakReturnStopHours: number;
 }
 
 const rules = {
@@ -52,24 +56,28 @@ const rules = {
   btcRatchetingPct: 100,
   btcRatchetWhenPriceChangePct: 10,
   btcPriceOverride: 86_582.20,
-  btcMaxTxnsPerHour: 25_000,
-  unvaultLatencyInHours: 12,
-  fearSelloffDelayInDays: 3,
+  btcMaxTxnsPerHour: 10_000,
+  btcReserveTaperPct: 60, // Taper over the final 60% of initially spendable BTC.
+  unvaultLatencyInHours: 6,
+  fearSelloffDelayInDays: 2,
 
-  enableCertaintyGreed: true,
+  enableCertaintyGreed: false,
   certaintyGreedLow: 2,
   certaintyGreedHigh: 20,
-  certaintyLatencyLow: 24,
+  certaintyLatencyLow: 12,
   certaintyLatencyHigh: 48,
   certaintyMaxDailyIncrease: 1, // Fraction of prior capital per day: 0.5 = 50%, not 0.5%.
 
-  enableSpeculativeGreed: false,
-  speculativeGreedLow: 10,
-  speculativeGreedHigh: 20,
-  speculativeGreedWithinHours: 24,
-  speculativeLatencyLow: 24,
-  speculativeLatencyHigh: 48,
-  speculativeMaxDailyIncrease: 0.5, // Fraction of prior capital per day: 0.5 = 50%.
+  enableSpeculativeGreed: true,
+  speculativeGreedLow: 50, // APR
+  speculativeGreedHigh: 100, // APR
+  speculativeLatencyLow: 6,
+  speculativeLatencyHigh: 12,
+  speculativeStartingDailyInflow: 0.0015, // Fraction of prior-day capital used to seed buying.
+  speculativeMaxDailyGrowth: 0.5, // Buying rate grows by at most 10% per day.
+  speculativeDailyInflowCeiling: 0.002, // Fraction of activation capital per day.
+  speculativeDailyTaper: 0.5, // Reduce buying rate by 50% per weak-return day.
+  speculativeWeakReturnStopHours: 24,
 };
 
 export default rules;

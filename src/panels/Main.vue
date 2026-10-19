@@ -12,9 +12,9 @@
           :key="recoveryRequest ? recoveryRunId : 'preview'" class="RecoveryPanel" :style="statsLayout"
           :frames="recoveryRequest ? recoveryFrames : previewFrames" :result="recoveryResult" :error="recoveryError"
           :preview="!recoveryRequest || guidanceState === 'ready'" :btc-price="rules.btcPriceOverride"
-          :target="rules.usdTargetForArgon" :paused="guidanceState === 'explaining' || guidanceState === 'reserve-stall' || guidanceState === 'selloff-bottom'"
+          :target="rules.usdTargetForArgon" :paused="['explaining', 'reserve-stall', 'selloff-bottom', 'speculative-demand'].includes(guidanceState)"
           :reserveWaitDays="recoveryRequest?.rules.fearSelloffDelayInDays"
-          :explanationPauseHours="getExplanationPauseHours" @explanationPause="pauseForExplanation" @reservePause="pauseForReserve" @bottomPause="pauseAtBottom" @sample="onRecoverySample" />
+          :explanationPauseHours="getExplanationPauseHours" @explanationPause="pauseForExplanation" @reservePause="pauseForReserve" @bottomPause="pauseAtBottom" @speculativePause="pauseForSpeculation" @sample="onRecoverySample" />
 
       </div>
     
@@ -32,6 +32,7 @@
 <script setup lang="ts">
 import * as Vue from 'vue';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import RecoveryWorker from '../workers/recovery.ts?worker';
 import type { RecoveryRequest, RecoveryResult, RecoveryFrame } from '../lib/RecoveryRunner';
 import MiningEngine from '../engine/MiningEngine';
@@ -71,6 +72,8 @@ const statsLayout = Vue.computed(() => {
   return { opacity: recoveryRequest.value ? 1 : dragFadeProgress.value, top: `${targetLineY.value + (aboveTarget ? 65 : -65)}px`, transform: aboveTarget ? 'none' : 'translateY(-100%)' };
 });
 
+dayjs.extend(utc);
+
 // Anchor the window to the user's current calendar date, with UTC chart coordinates.
 const today = dayjs().startOf('day');
 const toChartTime = (date: dayjs.Dayjs) => Date.UTC(date.year(), date.month(), date.date());
@@ -88,10 +91,10 @@ const recoveryFrames = Vue.shallowRef<RecoveryFrame[]>([]);
 const recoveryResult = Vue.shallowRef<RecoveryResult | null>(null);
 const recoveryError = Vue.ref('');
 const recoveryRunId = Vue.ref(0);
-const guidanceState = Vue.ref<'idle' | 'ready' | 'running' | 'explaining' | 'reserve-stall' | 'selloff-bottom' | 'success' | 'failure' | 'done'>('idle');
+const guidanceState = Vue.ref<'idle' | 'ready' | 'running' | 'explaining' | 'reserve-stall' | 'selloff-bottom' | 'speculative-demand' | 'success' | 'failure' | 'done'>('idle');
 const guidanceHistory = Vue.shallowRef<{ state: string; frame: RecoveryFrame; request: RecoveryRequest }[]>([]);
 Vue.watch(guidanceState, state => {
-  if (!['ready', 'explaining', 'reserve-stall', 'selloff-bottom', 'success', 'failure'].includes(state)) return;
+  if (!['ready', 'explaining', 'reserve-stall', 'selloff-bottom', 'speculative-demand', 'success', 'failure'].includes(state)) return;
   const frame = recoverySample.value ?? recoveryFrames.value[0];
   if (!frame || !recoveryRequest.value) return;
   guidanceHistory.value = [...guidanceHistory.value, {
@@ -118,8 +121,13 @@ function pauseForExplanation() {
   guidanceState.value = 'explaining';
   recoveryPlaying.value = false;
 }
+function pauseForSpeculation() {
+  if (guidanceState.value !== 'running') return;
+  guidanceState.value = 'speculative-demand';
+  recoveryPlaying.value = false;
+}
 function resumePlayback() {
-  if (!['explaining', 'reserve-stall', 'selloff-bottom'].includes(guidanceState.value)) return;
+  if (!['explaining', 'reserve-stall', 'selloff-bottom', 'speculative-demand'].includes(guidanceState.value)) return;
   guidanceState.value = 'running';
   recoveryPlaying.value = true;
 }
@@ -161,7 +169,9 @@ function prepareSimulation(shock: Pick<RecoveryRequest, 'startingTime' | 'ending
   cancelRecovery();
   recoveryRunId.value++;
   const request: RecoveryRequest = { ...shock,
-    endingTime: shock.startingTime + (chartEndingTime - chartStartingTime),
+    endingTime: shock.startingPrice < rules.value.usdTargetForArgon
+      ? dayjs.utc(shock.startingTime).add(12, 'month').add(1, 'day').valueOf()
+      : shock.startingTime + (chartEndingTime - chartStartingTime),
     lockedBitcoins: bitcoinsInLiquidLocks.value, rules: JSON.parse(JSON.stringify(rules.value)) };
   recoveryFrames.value = [{ time: shock.startingTime, elapsedHours: 0, price: shock.startingPrice,
     circulation: request.rules.circulation, bitcoinsRemaining: request.lockedBitcoins,
@@ -209,7 +219,7 @@ function startRecovery(shock: Pick<RecoveryRequest, 'startingTime' | 'endingTime
   guidanceState.value = 'running';
   recoveryRunId.value++;
   const request: RecoveryRequest = {
-    ...shock, endingTime: shock.startingTime + (chartEndingTime - chartStartingTime),
+    ...shock, endingTime: dayjs.utc(shock.startingTime).add(12, 'month').add(1, 'day').valueOf(),
     lockedBitcoins: bitcoinsInLiquidLocks.value,
     rules: JSON.parse(JSON.stringify(rules.value)),
   };

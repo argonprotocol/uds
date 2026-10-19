@@ -51,7 +51,7 @@
                   class="mt-2 block w-full rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm" />
               </div>
               <div v-if="editingMin !== undefined && editingMax !== undefined" class="QuantitySlider mt-4">
-                <input type="range" min="0" max="1000" step="1" v-model.number="quantitySlider"
+                <input type="range" min="0" max="1000" step="1" v-model.number="quantitySlider" :disabled="infeasibleRange" @input="syncSliderThumb"
                   :aria-label="props.id === 'circulation' ? 'Argons In Circulation' : props.id === 'btcMaxTxnsPerHour' ? 'Max BTC Unlocks Per Hour' : 'Bitcoins Liquid Locked'"
                   :aria-valuetext="formattedModel"
                   class="block w-full cursor-pointer accent-fuchsia-600" />
@@ -64,11 +64,13 @@
                   </span>
                 </div>
               </div>
+              <p v-if="rangeDescription" class="mt-4 text-sm text-slate-500">{{ rangeDescription }}</p>
+              <p v-if="infeasibleRange" class="mt-2 text-sm text-red-600" role="alert">The required reserve exceeds the maximum locked BTC. Reduce circulation before saving.</p>
               <p v-if="validationError" class="mt-2 text-sm text-red-600" role="alert">{{ validationError }}</p>
             </div>
             <div class="mt-10 flex flex-row">
               <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto" @click="cancelEditing(closeFn)" ref="cancelButtonRef">Cancel</button>
-              <button type="button" class="inline-flex w-full justify-center rounded-md border px-5 py-1.5 text-sm font-semibold shadow-sm text-white border-fuchsia-800 bg-fuchsia-600 hover:bg-fuchsia-500 sm:ml-3 sm:w-auto" @click="saveAndCloseEditing(closeFn)">Save</button>
+              <button type="button" class="inline-flex w-full justify-center rounded-md border px-5 py-1.5 text-sm font-semibold shadow-sm text-white border-fuchsia-800 bg-fuchsia-600 hover:bg-fuchsia-500 sm:ml-3 sm:w-auto"  :disabled="infeasibleRange" @click="saveAndCloseEditing(closeFn)">Save</button>
             </div>
 
           </div>
@@ -99,6 +101,7 @@ const props = defineProps<{
   label?: string;
   sliderMin?: number;
   sliderMax?: number;
+  rangeDescription?: string;
 }>();
 
 const emit = defineEmits(['showing', 'hiding', 'updated', 'update:modelValue']);
@@ -107,8 +110,10 @@ const elementRef = Vue.ref<HTMLElement | null>(null);
 const buttonRef = Vue.ref<typeof PopoverButton | null>(null);
 const localModel = Vue.ref(props.modelValue);
 const validationError = Vue.ref('');
-const editingMin = Vue.computed(() => props.id === 'btcMaxTxnsPerHour' ? 1000 : props.sliderMin);
-const editingMax = Vue.computed(() => props.id === 'btcMaxTxnsPerHour' ? 25000 : props.sliderMax);
+const editingMin = Vue.computed(() => props.id === 'btcMaxTxnsPerHour' ? 10_000 : props.sliderMin);
+const editingMax = Vue.computed(() => props.id === 'btcMaxTxnsPerHour' ? 200_000 : props.sliderMax);
+
+const infeasibleRange = Vue.computed(() => editingMin.value !== undefined && editingMax.value !== undefined && editingMin.value > editingMax.value);
 
 function formatQuantity(value: string | number) {
   const [whole, fraction] = String(value).split('.');
@@ -131,7 +136,7 @@ const formattedModel = Vue.computed({
 });
 
 function compactQuantity(value: number) {
-  return new Intl.NumberFormat('en-US', { notation: 'compact' }).format(value);
+  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
 
 function onQuantityInput(event: Event) {
@@ -152,20 +157,23 @@ function onQuantityInput(event: Event) {
 }
 
 function sliderPosition(value: number) {
+  if (props.id === 'bitcoinsInLiquidLocks') return Math.max(0, Math.min(21_000_000, value)) / 21_000_000 * 1000;
   const min = editingMin.value ?? 0;
   const max = editingMax.value ?? 1;
+  if (min >= max) return 0;
   const bounded = Math.max(min, Math.min(max, value));
-  if (props.id === 'btcMaxTxnsPerHour') return (bounded - min) / (max - min) * 1000;
+  if (props.id === 'btcMaxTxnsPerHour') return bounded / max * 1000;
   if (min > 0) return Math.log(bounded / min) / Math.log(max / min) * 1000;
   return Math.log1p(bounded - min) / Math.log1p(max - min) * 1000;
 }
 
 function sliderValue(position: number) {
+  if (props.id === 'bitcoinsInLiquidLocks') return Math.max(0, Math.min(1000, position)) / 1000 * 21_000_000;
   const min = editingMin.value ?? 0;
   const max = editingMax.value ?? 1;
+  if (props.id === 'btcMaxTxnsPerHour') return Math.max(0, Math.min(1000, position)) / 1000 * max;
   if (position <= 0) return min;
   if (position >= 1000) return max;
-  if (props.id === 'btcMaxTxnsPerHour') return min + position / 1000 * (max - min);
   return min > 0 ? min * Math.pow(max / min, position / 1000)
     : min + Math.expm1(position / 1000 * Math.log1p(max - min));
 }
@@ -186,6 +194,11 @@ const quantitySlider = Vue.computed({
     validationError.value = '';
   },
 });
+
+function syncSliderThumb(event: Event) {
+  const input = event.target as HTMLInputElement;
+  Vue.nextTick(() => { input.value = String(quantitySlider.value); });
+}
 
 Vue.watch(() => props.modelValue, (newValue) => {
   localModel.value = newValue;
@@ -224,6 +237,7 @@ function handleKeyPress(closeFn: () => void, event: KeyboardEvent) {
 }
 
 function saveAndCloseEditing(closeFn: () => void) {
+  if (infeasibleRange.value) return;
   const value = Number(localModel.value);
   if (String(localModel.value).trim() === '' || !Number.isFinite(value) || value < 0) {
     validationError.value = 'Enter a valid quantity of zero or more.';
@@ -233,7 +247,7 @@ function saveAndCloseEditing(closeFn: () => void) {
     validationError.value = `Enter a quantity of at least ${formatQuantity(editingMin.value)}.`;
     return;
   }
-  if (['circulation', 'btcMaxTxnsPerHour'].includes(props.id) && editingMax.value !== undefined && value > editingMax.value) {
+  if (['circulation', 'btcMaxTxnsPerHour', 'bitcoinsInLiquidLocks'].includes(props.id) && editingMax.value !== undefined && value > editingMax.value) {
     validationError.value = `Enter a quantity of no more than ${formatQuantity(editingMax.value)}.`;
     return;
   }

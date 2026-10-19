@@ -51,6 +51,8 @@ export default class Marker {
   public pctIncreaseFromTaxation: number = 0;
   public pctIncreaseFromAllSources: number = 0;
 
+  private speculativeBuying?: { hourlyInflow: number; activationCapital: number; weakHours: number };
+
   private annualTransactions: number = 0;
   private annualMicropayments: number = 0;
 
@@ -270,61 +272,44 @@ export default class Marker {
   }
 
   private runSpeculativeGreed(rules: IRules, previousMarkers: Marker[]) {
-    const profitPotentials = [];
-
-    const maxCapMarkers = Math.round(rules.speculativeLatencyHigh/(this.durationInHours === 24 ? 24 : 1));
-    const cappedMarkers = previousMarkers.slice(-maxCapMarkers);
-    const cappedMarkerHours = cappedMarkers.length * this.durationInHours; // we're assuming all markers are the same duration
-
-    if (cappedMarkerHours < (rules.speculativeLatencyLow || 1)) {
-      // The minimum timeframe must have passed
-      return;
-    }
-
-    for (let index = cappedMarkers.length - 1; index >= 0; index--) {
-      const marker = cappedMarkers[index];
-      const hoursPassed = (cappedMarkers.length - (index + 1)) * this.durationInHours;
-
-      if (marker.pctIncreaseFromAllSources < rules.speculativeGreedLow && hoursPassed < rules.speculativeLatencyLow) {
-        /*
-         * If any of the markers within latencyLow have a profit lower than greedLow,
-         * then we must completely bail. This ensures we only proceed when all recent
-         * markers meet the minimum profit threshold.
-         */
-        return;
+    const latest = previousMarkers[previousMarkers.length - 1];
+    if (!latest) return;
+    const apr = (marker: Marker) => marker.pctIncreaseFromAllSources * divide(365 * 24, marker.durationInHours);
+    const cappedMarkers = previousMarkers.slice(-Math.max(1, Math.round(rules.speculativeLatencyHigh / this.durationInHours)));
+    const previousBuying = latest.speculativeBuying;
+    let buying: NonNullable<Marker['speculativeBuying']>;
+    if (previousBuying) {
+      buying = { ...previousBuying };
+      if (apr(latest) < rules.speculativeGreedLow) {
+        buying.weakHours += this.durationInHours;
+        if (buying.weakHours >= rules.speculativeWeakReturnStopHours) return;
+        buying.hourlyInflow *= Math.pow(1 - rules.speculativeDailyTaper, this.durationInHours / 24);
+      } else {
+        buying.weakHours = 0;
+        const averageApr = cappedMarkers.reduce((sum, marker) => sum + apr(marker), 0) / cappedMarkers.length;
+        const strength = Math.max(0, Math.min(1, divide(averageApr - rules.speculativeGreedLow,
+          rules.speculativeGreedHigh - rules.speculativeGreedLow)));
+        buying.hourlyInflow *= Math.pow(1 + rules.speculativeMaxDailyGrowth, strength * this.durationInHours / 24);
       }
-      // only accept markers that had profit above greedLow, otherwise treat profit as zero
-      const profitPotential = marker.pctIncreaseFromAllSources;
-      profitPotentials.push(profitPotential >= rules.speculativeGreedLow ? profitPotential : 0);
+    } else {
+      if (cappedMarkers.length * this.durationInHours < Math.max(1, rules.speculativeLatencyLow)) return;
+      const recent = cappedMarkers.slice(-Math.max(1, Math.ceil(rules.speculativeLatencyLow / this.durationInHours)));
+      if (recent.some(marker => apr(marker) < rules.speculativeGreedLow)) return;
+      const averageApr = cappedMarkers.reduce((sum, marker) => sum +
+        (apr(marker) >= rules.speculativeGreedLow ? apr(marker) : 0), 0) / cappedMarkers.length;
+      if (averageApr <= rules.speculativeGreedLow) return;
+      const yesterday = previousMarkers[previousMarkers.length - Math.max(1, Math.round(24 / this.durationInHours))];
+      if (!yesterday) return;
+      buying = { hourlyInflow: yesterday.currentCapital * rules.speculativeStartingDailyInflow / 24,
+        activationCapital: this.startingCapital, weakHours: 0 };
     }
-
-    const averageProfitPotential: number = divide(profitPotentials.reduce((acc, potential) => acc + potential, 0), profitPotentials.length);
-
-    /**
-     * Calculates the greed factor based on the average profit potential.
-     * The greed factor is a normalized value between 0 and 1, representing
-     * the relative position of the average profit potential between the
-     * greedLow and greedHigh thresholds. It is divided by 24 to adjust
-     * for hourly calculations.
-     */
-    const greedFactor = divide(Math.min(divide(averageProfitPotential - rules.speculativeGreedLow, rules.speculativeGreedHigh - rules.speculativeGreedLow), 1), 24);
-    
-    /**
-     * Convert speculativeMaxDailyIncrease to an hourly increase. Then use
-     * currentCapital from yesterday's markers so it doesn't
-     * compound over 24 hours into a return that's larger than the max.
-     */
-    const maxIncreasePerMarker = divide(rules.speculativeMaxDailyIncrease, 24) * this.durationInHours;
-    const yesterdaysMarker = cappedMarkers[cappedMarkers.length - (this.durationInHours === 24 ? 1 : 24)];
-    const excessCirculation = Marker.calculateExcessSupply(this.currentCirculation, this.currentCapital);
-
-    if (averageProfitPotential >= rules.speculativeGreedHigh) {
-      const capitalToAdd = Math.min(maxIncreasePerMarker * yesterdaysMarker.currentCapital, excessCirculation);
-      this.addCapital(capitalToAdd, 'SpeculativeGreed');
-    } else if (averageProfitPotential > rules.speculativeGreedLow) {
-      const capitalToAdd = Math.min(maxIncreasePerMarker * yesterdaysMarker.currentCapital * greedFactor, excessCirculation);
-      this.addCapital(capitalToAdd, 'SpeculativeGreed');
-    }
+    buying.hourlyInflow = Math.min(buying.hourlyInflow,
+      buying.activationCapital * rules.speculativeDailyInflowCeiling / 24);
+    const capitalToAdd = Math.max(0, Math.min(buying.hourlyInflow * this.durationInHours,
+      Marker.calculateExcessSupply(this.currentCirculation, this.currentCapital)));
+    if (capitalToAdd <= 0) return;
+    this.speculativeBuying = buying;
+    this.addCapital(capitalToAdd, 'SpeculativeGreed');
   }
 
   public runCertaintyGreed(rules: IRules, previousMarkers: Marker[]) {    

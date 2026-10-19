@@ -2,40 +2,84 @@
   <TransitionRoot as="template" :show="isOpen">
     <Dialog class="relative z-[2000]" @close="closeOverlay()">
       <TransitionChild as="template" enter="ease-out duration-300" enter-from="opacity-0" enter-to="opacity-100" leave="ease-in duration-200" leave-from="opacity-100" leave-to="opacity-0">
-        <div @click="close" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
       </TransitionChild>
 
-      <div @click="close" class="fixed inset-0 z-50 w-screen overflow-y-auto">
+      <div class="fixed inset-0 z-50 w-screen overflow-y-auto">
         <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
           <TransitionChild as="template" enter="ease-out duration-300" enter-from="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" enter-to="opacity-100 translate-y-0 sm:scale-100" leave="ease-in duration-200" leave-from="opacity-100 translate-y-0 sm:scale-100" leave-to="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
             
-            <DialogPanel class="relative transform rounded-lg bg-white px-5 pb-3 pt-3 text-left shadow-xl transition-all w-full max-w-5xl min-h-[50rem]">
+            <DialogPanel class="relative transform rounded-lg bg-white px-5 pb-3 pt-3 text-left shadow-xl transition-all w-full max-w-3xl my-6">
               
-              <div v-if="completedWelcome" @click="closeOverlay()" CloseIcon class="absolute -top-2 -right-2 cursor-pointer flex flex-row items-center space-x-1 border border-slate-400/70 rounded-full p-2 bg-white hover:bg-slate-300 z-1">
+              <button v-if="completedWelcome" type="button" aria-label="Close FAQ" @click="closeOverlay()" CloseIcon class="absolute -top-2 -right-2 cursor-pointer flex flex-row items-center space-x-1 border border-slate-400/70 rounded-full p-2 bg-white hover:bg-slate-300 z-1">
                 <XMarkIcon class="inline-block w-4 h-4" />
-              </div>
+              </button>
               <div v-if="!completedWelcome" class="pb-3 border-b border-slate-300">
-                <div @click="closeOverlay()" class="inline-block cursor-pointer text-gray-400 hover:text-fuchsia-600">
+                <button type="button" @click="closeOverlay()" class="inline-block cursor-pointer text-gray-400 hover:text-fuchsia-600">
                   <ArrowLeftIcon class="inline-block w-4 h-4 relative top-[-1.5px]" /> Back to Welcome
-                </div>
+                </button>
               </div>
 
               <DialogTitle class="text-3xl font-bold text-center py-3 border-b border-slate-300">Frequently Asked Questions</DialogTitle>
 
-              <div class="flex flex-col divide-y px-6 pt-6 py-4 space-y-4 overflow-y-scroll overflow-x-auto max-h-[72vh]">
+              <div class="divide-y px-1 sm:px-4 overflow-y-auto max-h-[65vh]">
 
-                <section class="space-y-3">
-                  <h3>What is the purpose of this tool?</h3>
-                  <p>This is a simulation engine that allows you to test Argon's ability to recover from a death spiral. It loads with a default configuration that mimics Terra's $18.7 billion implosion, but you can edit the properties to see how Argon performs under different conditions.</p>
-                </section>
+                <details class="py-4" open>
+                  <summary class="cursor-pointer text-lg font-semibold hover:text-fuchsia-600">What Does This Simulator Show?</summary>
+                  <div class="space-y-3 pt-3 text-base text-gray-500 cursor-default">
+                    <p>It explores how the Argon stablecoin responds when its price moves below or above target.
+                      You can adjust the the starting conditions to compare stabilization outcomes.</p>
+                  </div>
+                </details>
 
-                <section class="space-y-3 pt-4">
-                  <h3>How is the collapse being modeled?</h3>
-                  <p>In order to fully test Argon's ability to recover from a death spiral, this model (re)creates the largest stablecoin collapse in history.</p>
-                  <p>It first disables all Argon stabilization mechanisms, then it mimics Terra's $18.7 billion implosion. This causes Argon to lose 99.999% of its value over the next 30 days, ultimately dropping to a rock-bottom of $0.001 per token. No stablecoin has ever recovered from this level of loss.</p>
+                <details class="py-4">
+                  <summary class="cursor-pointer text-lg font-semibold hover:text-fuchsia-600">How Do I Get Started?</summary>
+                  <div class="space-y-3 pt-3 text-base text-gray-500 cursor-default">
+                    <p>Drag the chart’s price line either up or down to choose a starting price.</p>
+                  </div>
+                </details>
 
-                  <p>Once Argon's Terra-like collapse is finished, nearly $18,700,000,000 (that's billions) in capital has been erased from the markets, the model renenables Argon's stabilization mechanisms.</p>
-                </section>
+                <details class="py-4">
+                  <summary class="cursor-pointer text-lg font-semibold hover:text-fuchsia-600">How Does the Model Recover Below Target?</summary>
+                  <div class="space-y-3 pt-3 text-base text-gray-500 cursor-default">
+                    <p>Bitcoin unlocking burns Argon, reducing circulating supply. Other enabled mechanisms can also affect recovery. Results depend on available BTC, unlocking limits, participant delays, and demand assumptions.</p>
+                  </div>
+                </details>
+
+                <details class="py-4">
+                  <summary class="cursor-pointer text-lg font-semibold hover:text-fuchsia-600">Why Might Recovery Pause Before Another Price Drop?</summary>
+                  <div class="space-y-3 pt-3 text-base text-gray-500 cursor-default">
+                    <p>The model protects BTC for a possible crash to $0.001. If spendable BTC runs out, it waits three days by default before modeling a 24-hour selloff. At the bottom, the protected BTC becomes available for recovery.</p>
+                  </div>
+                </details>
+
+                <details class="py-4">
+                  <summary class="cursor-pointer text-lg font-semibold hover:text-fuchsia-600">What Happens Above Target?</summary>
+                  <div class="space-y-3 pt-3 text-base text-gray-500 cursor-default">
+                    <p>The model adds supply at daily intervals, split equally between mining and BTC Liquids. It assumes sufficient miner and new BTC participation while modeled demand stays fixed.</p>
+                  </div>
+                </details>
+
+                <details class="py-4">
+                  <summary class="cursor-pointer text-lg font-semibold hover:text-fuchsia-600">Where Do the Starting Values Come From?</summary>
+                  <div class="space-y-3 pt-3 text-base text-gray-500 cursor-default">
+                    <p>The default circulation, locked BTC, and target price come from a bundled mainnet snapshot. They are refreshed when the app’s data is updated and published. The target stays fixed during each run.</p>
+                  </div>
+                </details>
+
+                <details class="py-4">
+                  <summary class="cursor-pointer text-lg font-semibold hover:text-fuchsia-600">What Does “Unachievable” Mean?</summary>
+                  <div class="space-y-3 pt-3 text-base text-gray-500 cursor-default">
+                    <p>The scenario did not reach target within its modeled window, which runs for up to six simulated months for below-target recovery and 30 days for above-target minting. It does not establish that recovery could never happen later.</p>
+                  </div>
+                </details>
+
+                <details class="py-4">
+                  <summary class="cursor-pointer text-lg font-semibold hover:text-fuchsia-600">Does This Predict What Will Happen on Mainnet?</summary>
+                  <div class="space-y-3 pt-3 text-base text-gray-500 cursor-default">
+                    <p>No. The simulator simplifies trading, participant behavior, and protocol accounting. It helps explore assumptions; its prices and recovery times are not predictions.</p>
+                  </div>
+                </details>
               </div>
               
             </DialogPanel>
@@ -76,10 +120,6 @@ emitter.on('openFaqOverlay', () => {
 </script>
 
 <style lang="scss" scoped>
-section h3 {
-  @apply text-lg font-semibold;
-}
-
 a {
   @apply text-slate-600 hover:text-fuchsia-500;
   cursor: pointer;

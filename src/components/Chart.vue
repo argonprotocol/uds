@@ -17,6 +17,13 @@
         @pointerenter="hoveredGuidanceIndex = index" @pointerleave="hoveredGuidanceIndex = null"
         @focus="focusedGuidanceIndex = index" @blur="focusedGuidanceIndex = null"
         @pointerdown.stop @pointermove.stop @pointerup.stop @keydown.stop />
+      <button v-for="milestone in speculativeMilestones" :key="`speculative-${milestone.frame.time}`"
+        type="button" class="RecoveryMarker GuidanceDot" aria-label="Review speculative demand"
+        :style="{ left: `${milestone.x}px`, top: `${milestone.y}px` }"
+        @pointerenter="selectedSpeculativeTime = milestone.frame.time" @pointerleave="selectedSpeculativeTime = null"
+        @focus="selectedSpeculativeTime = milestone.frame.time" @blur="selectedSpeculativeTime = null"
+        @click.stop="selectedSpeculativeTime = milestone.frame.time"
+        @pointerdown.stop @pointermove.stop @pointerup.stop @keydown.stop />
       <div v-if="startingPointTooltipVisible && !reviewGuidance" ref="startingPointTooltip" class="StartingPointTooltip" role="tooltip" :style="startingPointTooltipLayout">
         <span class="StartingPointArrow" :class="startingPointTooltipOnRight ? 'ArrowLeft' : 'ArrowRight'" aria-hidden="true" />
         <dl>
@@ -117,10 +124,11 @@ const startingYear = Vue.computed(() => props.startingYear ?? 2025);
 const endingYear = Vue.computed(() => props.endingYear ?? 2125);
 const axisBounds = Vue.ref({ left: 0, right: 0, top: 0, bottom: 0 });
 const chartWindowOffset = Vue.ref(0);
+const chartWindowExtension = Vue.ref(0);
 const originalChartStart = () => props.startingTime ?? Date.UTC(startingYear.value, 0, 1);
 const originalChartEnd = () => props.endingTime ?? Date.UTC(endingYear.value, 0, 1);
 const chartStart = () => originalChartStart() + chartWindowOffset.value;
-const chartEnd = () => originalChartEnd() + chartWindowOffset.value;
+const chartEnd = () => originalChartEnd() + chartWindowOffset.value + chartWindowExtension.value;
 
 const shadowSelector = Vue.ref({ firstIdx: 0, lastIdx: 0, isActive: false });
 const mainSelector = Vue.ref({ firstIdx: 0, lastIdx: 0 });
@@ -175,6 +183,16 @@ const startingPointTooltipLayout = Vue.computed(() => {
 let draggingPivot = false;
 const activePointer = Vue.ref<number | null>(null);
 const recoveryMarker = Vue.ref({ x: 0, y: 0, ready: false });
+const speculativeMilestones = Vue.shallowRef<{ frame: RecoveryFrame; x: number; y: number }[]>([]);
+const selectedSpeculativeTime = Vue.ref<number | null>(null);
+const speculativeReview = Vue.computed(() => {
+  if (activePointer.value !== null || !props.guidanceRequest ||
+    (props.guidanceState && !['idle', 'running', 'done'].includes(props.guidanceState))) return;
+  const milestone = speculativeMilestones.value.find(point => point.frame.time === selectedSpeculativeTime.value);
+  if (!milestone) return;
+  return { x: milestone.x, y: milestone.y,
+    entry: { state: 'speculative-demand', frame: milestone.frame, request: props.guidanceRequest } };
+});
 const guidanceMilestones = Vue.shallowRef<{ entry: NonNullable<typeof props.guidanceHistory>[number]; x: number; y: number }[]>([]);
 const hoveredGuidanceIndex = Vue.ref<number | null>(null);
 const focusedGuidanceIndex = Vue.ref<number | null>(null);
@@ -194,12 +212,14 @@ const lineGuidance = Vue.computed(() => {
   const point = recoveryHoverPoint.value;
   const frames = props.recoveryFrames;
   if (!point || !frames?.length || !props.guidanceRequest || activePointer.value !== null ||
-    hoveredGuidanceIndex.value !== null || focusedGuidanceIndex.value !== null) return;
+    hoveredGuidanceIndex.value !== null || focusedGuidanceIndex.value !== null ||
+    selectedSpeculativeTime.value !== null) return;
   const frame = recoveryFrameAt(frames, (point.time - frames[0].time) / 3_600_000);
   return { x: point.x, y: point.y, entry: { state: 'running', frame, request: props.guidanceRequest } };
 });
-const reviewGuidance = Vue.computed(() => historicalGuidance.value ?? lineGuidance.value);
-Vue.watch(() => props.guidanceRequest, () => { recoveryHoverPoint.value = null; });
+const reviewGuidance = Vue.computed(() => props.guidanceState === 'speculative-demand'
+  ? undefined : speculativeReview.value ?? historicalGuidance.value ?? lineGuidance.value);
+Vue.watch(() => props.guidanceRequest, () => { recoveryHoverPoint.value = null; selectedSpeculativeTime.value = null; });
 Vue.watch(() => props.guidanceHistory, () => {
   hoveredGuidanceIndex.value = focusedGuidanceIndex.value = null;
   if (chart) positionHover(chart);
@@ -311,7 +331,11 @@ function positionHover(instance: Chart) {
     x: instance.scales.x.getPixelForValue(targetLineHead ?? props.recoveryCursor.x),
     y: instance.scales.y.getPixelForValue(props.recoveryCursor.y), ready: true,
   } : { x: 0, y: 0, ready: false };
-  guidanceMilestones.value = (props.guidanceHistory ?? []).map(entry => ({
+  speculativeMilestones.value = (props.recoveryFrames ?? []).filter(frame => frame.speculativeStarted
+    && frame.time <= (props.recoveryCursor?.x ?? -Infinity)).map(frame => ({
+      frame, x: instance.scales.x.getPixelForValue(frame.time), y: instance.scales.y.getPixelForValue(frame.price),
+    })).filter(point => point.x >= instance.chartArea.left && point.x <= instance.chartArea.right);
+  guidanceMilestones.value = (props.guidanceHistory ?? []).filter(entry => entry.state !== 'speculative-demand').map(entry => ({
     entry, x: instance.scales.x.getPixelForValue(entry.frame.time),
     y: instance.scales.y.getPixelForValue(entry.frame.price),
   }));
@@ -375,10 +399,16 @@ function updateEditableLine() {
     Math.max(originalChartEnd(), cursorTime + targetLinePadding));
   const tailHead = stabilized && props.recoveryPoints?.length && cursorTime < tailEnd
     ? animatedTargetLineEnd(cursorTime, tailEnd) : null;
-  const offset = props.recoveryPoints?.length
+  const longRecovery = props.guidanceRequest &&
+    props.guidanceRequest.startingPrice < baselinePrice &&
+    cursorTime > props.guidanceRequest.startingTime + 30 * 86_400_000;
+  const extension = longRecovery
+    ? Math.max(0, Math.min(cursorTime + targetLinePadding, props.guidanceRequest!.endingTime) - originalChartEnd()) : 0;
+  const offset = !longRecovery && props.recoveryPoints?.length
     ? Math.max(0, Math.min((tailHead ?? cursorTime) - originalChartEnd(), grip - originalChartStart())) : 0;
-  if (offset !== chartWindowOffset.value) {
+  if (offset !== chartWindowOffset.value || extension !== chartWindowExtension.value) {
     chartWindowOffset.value = offset;
+    chartWindowExtension.value = extension;
     chart.options.scales!.x!.min = chartStart();
     chart.options.scales!.x!.max = chartEnd();
   }

@@ -27,6 +27,17 @@
         <button v-if="!readOnly" type="button" @click="emit('start')">Activate Bitcoin Shorts <ChevronDoubleRightIcon class="inline-block h-4 w-4 align-middle" aria-hidden="true" /></button>
       </template>
     </template>
+    <template v-else-if="state === 'speculative-demand'">
+      <h3>Speculative Demand Begins</h3>
+      <p>Recent price gains met the {{ request.rules.speculativeGreedLow }}% APR minimum for
+        {{ request.rules.speculativeLatencyLow }} hours, attracting investors who added
+        {{ ((frame.speculativeCapitalAdded ?? 0) * request.rules.usdTargetForArgon).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }) }}
+        in capital this hour.</p>
+      <p>The model annualizes interval returns without compounding. Buying grows by up to {{ request.rules.speculativeMaxDailyGrowth * 100 }}% per day when average returns reach
+        {{ request.rules.speculativeGreedHigh }}% APR. Weak returns taper buying before it stops after
+        {{ request.rules.speculativeWeakReturnStopHours }} hours. Inflows remain limited by the configured ceiling and available excess supply.</p>
+      <button v-if="!readOnly" type="button" @click="emit('continue')">Continue <ChevronDoubleRightIcon class="inline-block h-4 w-4 align-middle" aria-hidden="true" /></button>
+    </template>
     <template v-else-if="state === 'selloff-bottom'">
       <h3>Argon Has Reached Bottom</h3>
       <p>The death-spiral has finished with Argon at a complete collapse of ${{ frame.price.toFixed(3) }}. There is only {{ frame.bitcoinsRemaining.toLocaleString('en-US', { maximumFractionDigits: 3 }) }} of BTC still locked in the vaults,
@@ -34,8 +45,10 @@
       <button v-if="!readOnly" type="button" @click="emit('continue')">Let's Go! <ChevronDoubleRightIcon class="inline-block h-4 w-4 align-middle" aria-hidden="true" /></button>
     </template>
     <template v-else-if="state === 'reserve-stall'">
-      <h3>Uh Oh, There Aren't Enough Bitcoins</h3>
-      <p>
+      <h3>{{ frame.sixMonthSelloff ? 'Six Months Without Restabilization' : "Uh Oh, There Aren't Enough Bitcoins" }}</h3>
+      <p v-if="frame.sixMonthSelloff">Argon has not returned to target after six months. Let's simulate a loss of confidence
+        and a full death-spiral, followed by recovery using the protected BTC reserve.</p>
+      <p v-else>
         There are several scenarios whereby the amount of BTC in the network can get too low. In this case, the price rebound has been
         flat for {{ request.rules.fearSelloffDelayInDays }} days. Let's simulate a market-driven stampede where the crowd loses faith in Argon and a full-on death-spiral
         is triggered.
@@ -66,8 +79,8 @@
       <p v-else>The simulation ended without reaching target. Try adjusting the starting price, circulation, or available BTC.</p>
       <p v-if="aboveTarget">{{ (frame.argonsMinted ?? 0).toLocaleString('en-US', { maximumFractionDigits: 0 }) }} new Argons were minted, with miners earning
         ${{ miningRevenue.toLocaleString('en-US', { minimumFractionDigits: miningRevenue > 1000 ? 0 : 3, maximumFractionDigits: miningRevenue > 1000 ? 0 : 3 }) }}. Also, an additional {{ (frame.bitcoinsAdded ?? 0).toLocaleString('en-US', { maximumFractionDigits: 3 }) }} BTC was added to the network.</p>
-      <p v-else>With no external capital, the network burned the entire {{ frame.argonsBurned.toLocaleString('en-US', { maximumFractionDigits: 0 }) }} in excess circulation.
-        It used {{ frame.bitcoinsUnlocked.toLocaleString('en-US', { maximumFractionDigits: 3 }) }} BTC with {{ frame.bitcoinsRemaining.toLocaleString('en-US', { maximumFractionDigits: 3 }) }} BTC
+      <p v-else>The network burned {{ frame.argonsBurned.toLocaleString('en-US', { maximumFractionDigits: 0 }) }} in excess circulation.
+        It used {{ frame.bitcoinsUnlocked.toLocaleString('en-US', { maximumFractionDigits: frame.bitcoinsUnlocked < 100 ? 3 : 0 }) }} BTC with {{ frame.bitcoinsRemaining.toLocaleString('en-US', { maximumFractionDigits: frame.bitcoinsRemaining < 100 ? 3 : 0 }) }} BTC
         still remaining. The network is now ready to grow again.</p>
       <button v-if="!readOnly" type="button" @click="emit('done')">Finish</button>
     </template>
@@ -97,7 +110,9 @@ const circulationToMint = computed(() => Math.abs(props.frame.circulation - prop
 const circulationExcess = computed(() => Math.abs(props.frame.circulation - props.frame.circulation * props.frame.price / props.request.rules.usdTargetForArgon));
 const priceChangePercent = computed(() => Math.abs(props.request.startingPrice / props.request.rules.usdTargetForArgon - 1) * 100);
 const width = computed(() => Math.min(350, Math.max(220, props.bounds.right - props.bounds.left - 24)));
-const onRight = computed(() => props.anchor.x + width.value + 24 <= props.bounds.right);
+const onRight = computed(() => props.state === 'running'
+  ? props.anchor.x - width.value - 20 < props.bounds.left + 12
+  : props.anchor.x + width.value + 24 <= props.bounds.right);
 const top = computed(() => Math.max(props.bounds.top + 12,
   Math.min(props.anchor.y - height.value / 2,
     props.bounds.bottom - height.value + (['ready', 'running', 'selloff-bottom'].includes(props.state) ? 40 : -12))));

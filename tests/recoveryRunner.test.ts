@@ -158,6 +158,25 @@ describe('interactive recovery runner', () => {
     expect(b.points.at(-1)!.y).toBeLessThan(1.058);
   });
 
+  it('allows a slow recovery to finish beyond the first month', () => {
+    const input = request({ rules: { ...request().rules, btcMaxTxnsPerHour: 0.01 } });
+    expect(runRecovery(input).recovered).toBe(false);
+    const extended = runRecovery({ ...input, endingTime: Date.UTC(2030, 6, 1) });
+    expect(extended.recovered).toBe(true);
+    expect(extended.elapsedHours).toBeGreaterThan(720);
+    expect(extended.points.at(-1)!.x).toBeLessThanOrEqual(Date.UTC(2030, 6, 1));
+    expect(extended.points.at(-1)!.y).toBe(input.rules.usdTargetForArgon);
+  });
+
+  it('stops an unfinished recovery at the six-month deadline', () => {
+    const input = request({ endingTime: Date.UTC(2030, 6, 1),
+      rules: { ...request().rules, btcMaxTxnsPerHour: 0.001 } });
+    const result = runRecovery(input);
+    expect(result.recovered).toBe(false);
+    expect(result.frames.at(-1)!.time).toBe(input.endingTime);
+    expect(result.elapsedHours).toBe((input.endingTime - input.startingTime) / HOUR);
+  });
+
   it('does not create locked BTC when quantity is zero', () => {
     const input = request({ lockedBitcoins: 0 });
     const result = runRecovery(input);
@@ -215,4 +234,115 @@ describe('interactive recovery runner', () => {
     expect(result.recovered).toBe(false);
     expect(result.points.at(-1)!.x).toBe(input.startingTime + HOUR / 2);
   });
+});
+
+it('records speculative activation events without interpolating them', () => {
+  const input = request({ startingPrice: 0.5, lockedBitcoins: 100,
+    rules: { ...mainnetRules, circulation: 2_200_000,
+      enableTaxation: false, enableCertaintyGreed: false, enableSpeculativeGreed: true,
+      speculativeGreedLow: 0, speculativeGreedHigh: 1,
+      speculativeLatencyLow: 24, speculativeLatencyHigh: 48 } });
+  const result = runRecovery(input);
+  const event = result.frames.find(frame => frame.speculativeStarted);
+  expect(event).toBeDefined();
+  expect(event!.speculativeCapitalAdded).toBeGreaterThan(0);
+  const between = recoveryFrameAt(result.frames, event!.elapsedHours + 0.5);
+  expect(between.speculativeStarted).toBeUndefined();
+  expect(between.speculativeCapitalAdded).toBeUndefined();
+  const disabled = runRecovery({ ...input, rules: { ...input.rules, enableSpeculativeGreed: false } });
+  expect(disabled.frames.some(frame => frame.speculativeStarted)).toBe(false);
+});
+
+it('waits for speculative price recovery to stop before counting flatline hours', () => {
+  const startingTime = Date.UTC(2030, 0, 1);
+  const result = runRecovery({ startingTime, endingTime: startingTime + 960 * HOUR,
+    startingPrice: 0.3171817556727023, lockedBitcoins: 17_500_000,
+    rules: { ...mainnetRules, circulation: 2_950_560_386_754.328,
+      enableTaxation: false, enableCertaintyGreed: false, enableSpeculativeGreed: true,
+      speculativeGreedLow: 100, speculativeGreedHigh: 200,
+      speculativeLatencyLow: 12, speculativeLatencyHigh: 48,
+      speculativeStartingDailyInflow: 0.0001, speculativeMaxDailyGrowth: 0.1,
+      speculativeDailyInflowCeiling: 0.001, speculativeDailyTaper: 0.5,
+      speculativeWeakReturnStopHours: 24, fearSelloffDelayInDays: 3 } });
+  const stall = result.frames.find(frame => frame.reserveStall)!;
+  expect(stall).toBeDefined();
+  const stoppedBtc = result.frames.find(frame => frame.bitcoinsRemaining === stall.bitcoinsRemaining)!;
+  const following = result.frames.find(frame => frame.elapsedHours === stoppedBtc.elapsedHours + 2)!;
+  expect(following.price).toBeGreaterThan(stoppedBtc.price);
+  expect(following.speculativeCapitalAdded).toBeGreaterThan(0);
+  expect(stall.elapsedHours).toBeGreaterThan(following.elapsedHours);
+  const lastBuying = result.frames.filter(frame => frame.elapsedHours < stall.elapsedHours &&
+    (frame.speculativeCapitalAdded ?? 0) > 0).at(-1)!;
+  expect(stall.elapsedHours).toBeGreaterThan(lastBuying.elapsedHours);
+  const bottom = result.frames.find(frame => frame.selloffBottom)!;
+  expect(bottom.elapsedHours - stall.elapsedHours).toBe(96);
+});
+
+it('rounds the full death-spiral reserve upward and scales with circulation and BTC valuation', async () => {
+  const { minimumLockedBitcoins, crashRecoveryReserve, MAX_LOCKED_BITCOINS } = await import('../src/lib/RecoveryRunner');
+  const config = { ...mainnetRules, circulation: 2_950_560_386_754.328 };
+  const reserve = crashRecoveryReserve(config.circulation, config.usdTargetForArgon,
+    config.btcPriceOverride / config.usdTargetForArgon);
+  expect(reserve).toBeCloseTo(522_932.127, 3);
+  expect(minimumLockedBitcoins(config)).toBe(522_933);
+  expect(minimumLockedBitcoins({ ...config, circulation: config.circulation * 2 })).toBe(Math.ceil(reserve * 2));
+  expect(minimumLockedBitcoins({ ...config, btcPriceOverride: config.btcPriceOverride / 2 })).toBe(Math.ceil(reserve * 2));
+  expect(MAX_LOCKED_BITCOINS).toBe(17_500_000);
+});
+
+it('marks a six-month death spiral and continues through the bottom without repeating it', () => {
+  const startingTime = Date.UTC(2030, 0, 1);
+  const deadline = Date.UTC(2030, 6, 1);
+  const result = runRecovery(request({ startingTime, endingTime: deadline + 48 * HOUR,
+    rules: { ...baseRules, enableTaxation: false, enableCertaintyGreed: false,
+      enableSpeculativeGreed: false, enableBitcoinVaulting: false } }));
+  const events = result.frames.filter(frame => frame.sixMonthSelloff);
+  expect(events).toHaveLength(1);
+  const event = events[0];
+  expect(event.time).toBe(deadline);
+  expect(event.price).toBe(0.5);
+  const bottom = result.frames.find(frame => frame.selloffBottom)!;
+  expect(bottom.elapsedHours - event.elapsedHours).toBe(24);
+  expect(bottom.price).toBe(0.001);
+  expect(bottom.bitcoinsRemaining).toBe(event.bitcoinsRemaining);
+  expect(result.frames.at(-1)!.time).toBeGreaterThan(bottom.time);
+  expect(recoveryFrameAt(result.frames, event.elapsedHours + 0.5).sixMonthSelloff).toBeUndefined();
+});
+
+it('does not trigger the six-month event when recovery finishes earlier', () => {
+  const input = request({ endingTime: Date.UTC(2031, 0, 1), startingPrice: 0.7,
+    lockedBitcoins: 17_500_000,
+    rules: { ...mainnetRules, circulation: 2_950_560_386_754.328,
+      btcMaxTxnsPerHour: 1_000_000, unvaultLatencyInHours: 6,
+      enableSpeculativeGreed: false, enableCertaintyGreed: false, enableTaxation: false } });
+  const result = runRecovery(input);
+  expect(result.recovered).toBe(true);
+  expect(result.frames.some(frame => frame.sixMonthSelloff)).toBe(false);
+});
+
+it('tapers the unlock cap across the final 60% of spendable BTC without consuming the reserve', () => {
+  const startingTime = Date.UTC(2030, 0, 1);
+  const input = { startingTime, endingTime: startingTime + 180 * 24 * HOUR,
+    startingPrice: 0.207, lockedBitcoins: 17_500_000,
+    rules: { ...mainnetRules, circulation: 2_950_560_386_754.328,
+      btcMaxTxnsPerHour: 127_000, unvaultLatencyInHours: 6,
+      btcReserveTaperPct: 60, enableTaxation: false, enableCertaintyGreed: false,
+      enableSpeculativeGreed: true, speculativeGreedLow: 50, speculativeGreedHigh: 100,
+      speculativeLatencyLow: 6, speculativeLatencyHigh: 12,
+      speculativeStartingDailyInflow: 0.0015, speculativeMaxDailyGrowth: 0.5,
+      speculativeDailyInflowCeiling: 0.002, speculativeDailyTaper: 0.5,
+      speculativeWeakReturnStopHours: 24 } };
+  const tapered = runRecovery(input);
+  const baseline = runRecovery({ ...input, rules: { ...input.rules, btcReserveTaperPct: 0 } });
+  expect(tapered.recovered).toBe(true);
+  expect(tapered.frames.some(frame => frame.selloffBottom)).toBe(false);
+  expect(tapered.elapsedHours).toBeGreaterThan(baseline.elapsedHours);
+  const final = tapered.frames.at(-1)!;
+  expect(final.bitcoinsRemaining).toBeGreaterThanOrEqual(522_932.127);
+  expect(final.bitcoinsUnlocked).toBeLessThan(baseline.frames.at(-1)!.bitcoinsUnlocked);
+  const band = (17_500_000 - 522_932.12741769) * 0.6;
+  const before = tapered.frames[80], after = tapered.frames[81];
+  const remaining = before.bitcoinsRemaining - 522_932.12741769;
+  expect(remaining).toBeLessThan(band);
+  expect(after.bitcoinsUnlocked - before.bitcoinsUnlocked).toBeCloseTo(127_000 * remaining / band, 3);
 });

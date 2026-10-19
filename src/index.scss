@@ -36,3 +36,5 @@ body.isGrabbing {
     cursor: grabbing !important;
   }
 }
+/* Close controls retain keyboard focus without a focus outline. */
+[CloseIcon]:focus, [CloseTab]:focus { outline: none; }

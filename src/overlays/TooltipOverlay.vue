@@ -51,14 +51,14 @@ emitter.on('showTooltip', (incoming: any) => {
   id.value = incoming.id;
   label.value = incoming.label;
   
-  top.value = `${incoming.y + 7}px`;
+  top.value = `${incoming.y + 7 + (wrap.value ? 8 : 0)}px`;
   arrowTop.value = '0px';
   arrowBottom.value = 'auto';
   translateY.value = '0';
   arrowRotate.value = '0deg';
   arrowTranslateY.value = '-100%';
 
-  left.value = `${wrap.value ? Math.max(Math.min(280, window.innerWidth - 16) + 8, Math.min(window.innerWidth - 8, incoming.x + 17)) : incoming.x + 17}px`;
+  left.value = `${wrap.value ? Math.max(Math.min(201.6, window.innerWidth - 16) + 8, Math.min(window.innerWidth - 8, incoming.x + 17)) : incoming.x + 17}px`;
   arrowLeft.value = `${incoming.arrowX}px`;
   arrowRight.value = 'auto';
   translateX.value = '-100%';
@@ -72,7 +72,7 @@ emitter.on('hideTooltip', () => {
 <style scoped>
 .StatTooltip {
   position: fixed;
-  width: 280px;
+  width: 201.6px;
   max-width: calc(100vw - 16px);
 }
 </style>
